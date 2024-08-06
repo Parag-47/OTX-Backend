@@ -3,49 +3,31 @@ import helmet from "helmet";
 import morgan from "morgan";
 import cors from "cors";
 import passport from "passport";
-import { Strategy as GoogleStrategy} from ("passport-google-oauth20");
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 
-passport.use(new GoogleStrategy({
-  clientID: GOOGLE_CLIENT_ID,
-  clientSecret: GOOGLE_CLIENT_SECRET,
+const myPassport = new passport.Passport();
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: true,
+};
+
+const AUTH_OPTIONS = {
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: "http://localhost:3000/auth/google/callback",
-  scope:["profile"]
-},
-function verify(issuer, profile, cb) {
-  db.get('SELECT * FROM federated_credentials WHERE provider = ? AND subject = ?', [
-    issuer,
-    profile.id
-  ], function(err, row) {
-    if (err) { return cb(err); }
-    if (!row) {
-      db.run('INSERT INTO users (name) VALUES (?)', [
-        profile.displayName
-      ], function(err) {
-        if (err) { return cb(err); }
-        
-        var id = this.lastID;
-        db.run('INSERT INTO federated_credentials (user_id, provider, subject) VALUES (?, ?, ?)', [
-          id,
-          issuer,
-          profile.id
-        ], function(err) {
-          if (err) { return cb(err); }
-          var user = {
-            id: id,
-            name: profile.displayName
-          };
-          return cb(null, user);
-        });
-      });
-    } else {
-      db.get('SELECT * FROM users WHERE id = ?', [ row.user_id ], function(err, row) {
-        if (err) { return cb(err); }
-        if (!row) { return cb(null, false); }
-        return cb(null, row);
-      });
-    }
-  });
-}));
+  scope: ["profile"],
+};
+
+async function verifyCallback(accessToken, refreshToken, profile, done) {
+  console.log(accessToken);
+  console.log(refreshToken);
+  console.log("Google Profile: ", profile);
+  //Create User Record And If Any Error Pass The Error To Passport Through Callback.
+  return done(null, profile); //Replace Null With The Error.
+}
+
+myPassport.use(new GoogleStrategy(AUTH_OPTIONS, verifyCallback));
 
 const app = express();
 
@@ -55,13 +37,33 @@ app.use(
     origin: process.env.CORS_ORIGIN,
   })
 );
-app.use(passport.initialize());
-app.use(passport.session());
+app.use(myPassport.initialize());
+//app.use(myPassport.session());
 app.use(morgan("combined"));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 
-app.get("/", (req,res) => res.status(200).json({Message: "Hi!"}));
+app.get("/", (req, res) => res.status(200).json({ Message: "Hi!" }));
+app.get("/home", (req, res) =>
+  res.status(200).json({ Message: "Successfully Logged In!" })
+);
+app.get("/login", (req, res) =>
+  res.status(200).json({ Message: "Login Failed Try Again!" })
+);
+
+app.get(
+  "/auth/google",
+  myPassport.authenticate("google", { scope: ["email","profile"] })
+);
+
+app.get(
+  "/auth/google/callback",
+  myPassport.authenticate("google", {
+    failureRedirect: "/login",
+    successRedirect: "/home",
+    session: false,
+  })
+);
 
 export default app;
