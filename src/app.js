@@ -5,11 +5,30 @@ import cors from "cors";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 
+
+import Valkey from "ioredis";
+import session from "express-session";
+import RedisStore from "connect-redis";
+
+const valkey = new Valkey(process.env.SERVICE_URI);
+const redisStore = new RedisStore({
+  client: valkey,
+  prefix: "OTX:",
+});
+
 const myPassport = new passport.Passport();
+
+myPassport.serializeUser((user, done)=>{
+  return(null, user);
+});
+
+myPassport.deserializeUser((obj, done)=>{
+  return(null, obj);
+});
 
 const cookieOptions = {
   httpOnly: true,
-  secure: true,
+  secure: false, //Change To True In Production Very Important******
 };
 
 const AUTH_OPTIONS = {
@@ -31,14 +50,26 @@ myPassport.use(new GoogleStrategy(AUTH_OPTIONS, verifyCallback));
 
 const app = express();
 
+//app.set("trust proxy", 1); //for proxy related issues
+
 app.use(helmet());
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
   })
 );
-app.use(myPassport.initialize());
+app.use(
+  session({
+    store: redisStore,
+    resave: false, // required: force lightweight session keep alive (touch)
+    saveUninitialized: false, // recommended: only save session when data exists
+    secret: process.env.SESSION_SECRET,
+    cookie: cookieOptions,
+    maxAge: 1000 * 60 * 60 * 24,
+  }),
+);
 //app.use(myPassport.session());
+app.use(myPassport.initialize());
 app.use(morgan("combined"));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
@@ -62,7 +93,6 @@ app.get(
   myPassport.authenticate("google", {
     failureRedirect: "/login",
     successRedirect: "/home",
-    session: false,
   })
 );
 

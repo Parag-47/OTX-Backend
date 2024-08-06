@@ -1,6 +1,6 @@
 import http from "node:http";
 import app from "./app.js";
-import mongoConnect from "./mongo.js";
+import mongoConnect from "./db/mongo.js";
 
 const PORT = process.env.PORT || 5000;
 
