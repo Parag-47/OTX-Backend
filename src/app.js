@@ -16,14 +16,25 @@ const redisStore = new RedisStore({
   prefix: "OTX:",
 });
 
+//valkey.set()
+
+
 const myPassport = new passport.Passport();
 
-myPassport.serializeUser((user, done)=>{
-  return(null, user);
+myPassport.serializeUser((user, cb)=>{
+  const data = {
+    id: user.id,
+    displayName: user.displayName,
+    name: user.name,
+    emails: user.emails,
+    photos: user.photos,
+  };
+
+  cb(null, user);
 });
 
-myPassport.deserializeUser((obj, done)=>{
-  return(null, obj);
+myPassport.deserializeUser((user, cb)=>{
+  cb(null, user);
 });
 
 const cookieOptions = {
@@ -41,7 +52,7 @@ const AUTH_OPTIONS = {
 async function verifyCallback(accessToken, refreshToken, profile, done) {
   console.log(accessToken);
   console.log(refreshToken);
-  console.log("Google Profile: ", profile);
+  //console.log("Google Profile: ", profile);
   //Create User Record And If Any Error Pass The Error To Passport Through Callback.
   return done(null, profile); //Replace Null With The Error.
 }
@@ -60,16 +71,18 @@ app.use(
 );
 app.use(
   session({
+    //name: "session",
     store: redisStore,
     resave: false, // required: force lightweight session keep alive (touch)
     saveUninitialized: false, // recommended: only save session when data exists
     secret: process.env.SESSION_SECRET,
     cookie: cookieOptions,
-    maxAge: 1000 * 60 * 60 * 24,
+    maxAge: 1000 * 60,
   }),
 );
-//app.use(myPassport.session());
+
 app.use(myPassport.initialize());
+app.use(myPassport.session());
 app.use(morgan("combined"));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
