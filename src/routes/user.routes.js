@@ -17,7 +17,7 @@ const googleAuthCallback = myPassport.authenticate("google", {
 
 userRouter.get("/auth/google", googleAuth);
 userRouter.get("/auth/google/callback", googleAuthCallback);
-userRouter.post("/register", validateDto(validate), register);
+userRouter.post("/register", register);
 userRouter.get("/login", login);
 
 export default userRouter;

@@ -18,9 +18,9 @@ const cookieOptions = {
 
 const sessionOptions = {
   name: "sessionId",
-  store: redisStore,
+  //store: redisStore,
   resave: false, // required: force lightweight session keep alive (touch)
-  saveUninitialized: false, // recommended: only save session when data exists
+  saveUninitialized: true, // false recommended: only save session when data exists
   secret: process.env.SESSION_SECRET,
   cookie: cookieOptions,
   maxAge: 1000 * 60 * 60 * 24,
@@ -36,15 +36,18 @@ app.use(
     origin: process.env.CORS_ORIGIN,
   })
 );
+app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(express.static("public"));
 app.use(session(sessionOptions));
 app.use(myPassport.initialize());
 app.use(myPassport.session());
+app.use(myPassport.authenticate("session"));
 app.use(morgan("combined"));
 app.use(express.json({ limit: "16kb" }));
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+
 app.use(hpp());
 app.use(mongoSanitize());
-app.use(express.static("public"));
+
 app.use("/api/v1/users", userRouter);
 
 app.get("/", (req, res) => res.status(200).json({ Message: "Hi!" }));
