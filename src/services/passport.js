@@ -13,7 +13,7 @@ myPassport.serializeUser((user, cb)=>{
     photos: user.photos,
   };
 
-  cb(null, user);
+  cb(null, data);
 });
 
 myPassport.deserializeUser((user, cb)=>{
@@ -23,7 +23,7 @@ myPassport.deserializeUser((user, cb)=>{
 const AUTH_OPTIONS = {
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "http://localhost:3000/auth/google/callback",
+  callbackURL: "http://localhost:3000/api/v1/users/auth/google/callback",
   scope: ["profile"],
 };
 

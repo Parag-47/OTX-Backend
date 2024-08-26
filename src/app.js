@@ -4,11 +4,14 @@ import morgan from "morgan";
 import cors from "cors";
 import session from "express-session";
 import redisStore from "./db/valkey.js";
+import auth from "./middlewares/auth.js";
 import myPassport from "./services/passport.js";
+import userRouter from "./routes/user.routes.js";
 
 const cookieOptions = {
   httpOnly: true,
   secure: false, //Change To True In Production Very Important******
+  //sameSite: "none" //uncomment in prod so it only accept request from one site  
 };
 
 const sessionOptions = {
@@ -38,26 +41,11 @@ app.use(morgan("combined"));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
+app.use("/api/v1/users", userRouter);
 
 app.get("/", (req, res) => res.status(200).json({ Message: "Hi!" }));
-app.get("/home", (req, res) =>
+app.get("/home", auth ,(req, res) =>
   res.status(200).json({ Message: "Successfully Logged In!" })
-);
-app.get("/login", (req, res) =>
-  res.status(200).json({ Message: "Login Failed Try Again!" })
-);
-
-app.get(
-  "/auth/google",
-  myPassport.authenticate("google", { scope: ["email","profile"] })
-);
-
-app.get(
-  "/auth/google/callback",
-  myPassport.authenticate("google", {
-    failureRedirect: "/login",
-    successRedirect: "/home",
-  })
 );
 
 export default app;
