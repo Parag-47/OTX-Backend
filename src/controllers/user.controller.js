@@ -4,7 +4,8 @@ import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 
 const register = asyncHandler(async (req, res) => {
-  //phone no./email/pass
+  console.log(req.body);
+  res.send("OK!");
 });
 
 const login = asyncHandler(async (req, res) => {

@@ -7,26 +7,20 @@ const userSchema = new Schema({
     index: true,
     require: true,
   },
+  password: {
+    type: String,
+    require: [true, "Password is Required!"],
+  },
   phone: {
     type: Number,
     unique: true,
     index: true,
     require: true,
   },
-  firstName: {
+  name: {
     type: String,
     required: true,
     validate: (value) => value.length > 3,
-  },
-  lastName: {
-    type: String,
-    required: true,
-    validate: (value) => value.length > 3,
-  },
-  gender: {
-    type: String,
-    enum: ["male" , "female", "others"],
-    require: true,
   },
   broker: {
     type: String,
