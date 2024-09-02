@@ -58,7 +58,7 @@ async function googleAuthCallback(req, res) {
 }
 
 const registerUser = asyncHandler(async (req, res) => {
-  if (req.session.userId) res.redirect("/home");
+  if (req.session.userId) return res.redirect("/");
 
   let { phone, email, password, name } = req.body;
 
@@ -68,7 +68,7 @@ const registerUser = asyncHandler(async (req, res) => {
   if (email) email = email.toLowerCase();
 
   const existedUser = await User.findOne({
-    $or: [{ phone }, { email}],
+    $or: [{ phone: phone }, { email: email }],
   });
 
   if (existedUser)
@@ -76,7 +76,7 @@ const registerUser = asyncHandler(async (req, res) => {
       400,
       "This Email Or Phone Number Is Already Registered!"
     );
-
+    
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const user = await User.create({
@@ -135,7 +135,7 @@ const logout = asyncHandler(async (req, res) => {
     }
   });
 
-  res.clearCookie("sessionId").status(200).redirect("/");
+  res.status(302).clearCookie("sessionId").redirect("/");
 });
 
 const updateAccountInfo = asyncHandler(async (req, res) => {

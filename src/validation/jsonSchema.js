@@ -12,7 +12,7 @@ const schema = {
     traderType: {type: "string", enum: ["Day Trader", "Momentum Trader", "Option Trader", "Swing Trader", "Trend Trader", "Buy Hold Trader"]},
     source: {type: "string", enum: ["Facebook", "Instagram", "YouTube", "Direct"]},
   },
-  required: ["name", "phone", "email", "password", "broker"],
+  //required: ["name", "phone", "email", "password", "broker"],
   additionalProperties: false,
 };
 

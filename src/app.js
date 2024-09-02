@@ -18,7 +18,7 @@ const sessionOptions = {
   name: "sessionId",
   store: valkeyStore,
   resave: false, // required: force lightweight session keep alive (touch)
-  saveUninitialized: true, // false recommended: only save session when data exists
+  saveUninitialized: false, // false recommended: only save session when data exists
   secret: process.env.SESSION_SECRET,
   cookie: cookieOptions,
   maxAge: 1000 * 60 * 60 * 24,

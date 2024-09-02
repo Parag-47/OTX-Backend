@@ -14,8 +14,8 @@ const userRouter = Router();
 
 userRouter.get("/auth/google", googleAuth);
 userRouter.get("/auth/google/callback", googleAuthCallback);
-userRouter.post("/register", registerUser);
-userRouter.post("/login", checkAuthentication, login);
+userRouter.post("/register", validateDto(validate), registerUser);
+userRouter.post("/login", validateDto(validate), login);
 userRouter.get("/logout", checkAuthentication, logout);
 
 export default userRouter;
