@@ -1,6 +1,6 @@
-async function checkAuthenticated (req, res, next) {
-  if (req.isAuthenticated()) {return next();}
+async function checkAuthentication (req, res, next) {
+  if (req.session.userId) return next();
   return res.redirect("/");
 }
 
-export default checkAuthenticated;
+export default checkAuthentication;

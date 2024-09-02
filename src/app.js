@@ -5,9 +5,7 @@ import mongoSanitize from "express-mongo-sanitize";
 import cors from "cors";
 import hpp from "hpp";
 import session from "express-session";
-import redisStore from "./db/valkey.js";
-import auth from "./middlewares/auth.js";
-import myPassport from "./services/passport.js";
+import valkeyStore from "./db/valkey.js";
 import userRouter from "./routes/user.routes.js";
 
 const cookieOptions = {
@@ -18,7 +16,7 @@ const cookieOptions = {
 
 const sessionOptions = {
   name: "sessionId",
-  //store: redisStore,
+  store: valkeyStore,
   resave: false, // required: force lightweight session keep alive (touch)
   saveUninitialized: true, // false recommended: only save session when data exists
   secret: process.env.SESSION_SECRET,
@@ -31,28 +29,29 @@ const app = express();
 //app.set("trust proxy", 1); //for proxy related issues
 
 app.use(helmet());
+app.use(hpp());
+app.use(mongoSanitize());
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
   })
 );
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-app.use(express.static("public"));
 app.use(session(sessionOptions));
-app.use(myPassport.initialize());
-app.use(myPassport.session());
-app.use(myPassport.authenticate("session"));
 app.use(morgan("combined"));
 app.use(express.json({ limit: "16kb" }));
+app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+//app.use(express.static("public"));
 
-app.use(hpp());
-app.use(mongoSanitize());
+app.use(userRouter);
 
-app.use("/api/v1/users", userRouter);
-
+app.get("/oauth/:error", (req, res) => {
+  res.send(req.params.error);
+});
 app.get("/", (req, res) => res.status(200).json({ Message: "Hi!" }));
-app.get("/home", auth ,(req, res) =>
-  res.status(200).json({ Message: "Successfully Logged In!" })
-);
+app.get("/home", (req, res) => {
+  if (!req.session.userId)
+    return res.redirect(`http://localhost:3000/oauth/Not Authenticated!`);
+  res.status(200).json({ Message: "Successfully Logged In! ", User: req.user });
+});
 
 export default app;

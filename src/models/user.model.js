@@ -29,18 +29,25 @@ const userSchema = new Schema({
   },
   traderType: {
     type: String,
-    enum: ["Day Trader", "Momentum Trader", "Option Trader", "Swing Trader", "Trend Trader", "Buy Hold Trader"],
+    enum: [
+      "Day Trader",
+      "Momentum Trader",
+      "Option Trader",
+      "Swing Trader",
+      "Trend Trader",
+      "Buy Hold Trader",
+    ],
     default: "Day Trader",
   },
   source: {
     type: String,
     enum: ["Facebook", "Instagram", "YouTube", "Direct"],
-    default: "Direct"
+    default: "Direct",
   },
   isActive: {
     type: Boolean,
     default: false,
-  }
+  },
 });
 
 export const User = mongoose.model("User", userSchema);
