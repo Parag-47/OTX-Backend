@@ -42,7 +42,7 @@ app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 //app.use(express.static("public"));
 
-app.use(userRouter);
+app.use("/api/v1/user", userRouter);
 
 app.get("/oauth/:error", (req, res) => {
   res.send(req.params.error);

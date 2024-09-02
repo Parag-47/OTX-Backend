@@ -60,7 +60,7 @@ async function googleAuthCallback(req, res) {
 const registerUser = asyncHandler(async (req, res) => {
   if (req.session.userId) res.redirect("/home");
 
-  const { phone, email, password, name } = req.body;
+  let { phone, email, password, name } = req.body;
 
   if (!(phone || email) || !password || !name)
     throw new ApiError(400, "All fields are required!");
@@ -68,7 +68,7 @@ const registerUser = asyncHandler(async (req, res) => {
   if (email) email = email.toLowerCase();
 
   const existedUser = await User.findOne({
-    $or: [{ phone: phone }, { email: email }],
+    $or: [{ phone }, { email}],
   });
 
   if (existedUser)
