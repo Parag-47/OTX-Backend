@@ -8,6 +8,7 @@ import {
   registerUser,
   login,
   logout,
+  updateAccountInfo,
 } from "../controllers/user.controller.js";
 
 const userRouter = Router();
@@ -17,5 +18,6 @@ userRouter.get("/auth/google/callback", googleAuthCallback);
 userRouter.post("/register", validateDto(validate), registerUser);
 userRouter.post("/login", validateDto(validate), login);
 userRouter.get("/logout", checkAuthentication, logout);
+userRouter.post("/updateAccountInfo", checkAuthentication, validateDto(validate), updateAccountInfo);
 
 export default userRouter;

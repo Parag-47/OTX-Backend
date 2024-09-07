@@ -1,4 +1,3 @@
-import { format } from "morgan";
 import ajv from "./ajvInstance.js";
 
 const schema = {

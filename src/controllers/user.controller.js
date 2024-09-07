@@ -139,8 +139,31 @@ const logout = asyncHandler(async (req, res) => {
 });
 
 const updateAccountInfo = asyncHandler(async (req, res) => {
-  
+  const update = {};
+  for (const key of Object.keys(req.body)){
+      if (req.body[key] !== '' && req.body[key] !== undefined && req.body[key] !== null) {
+          update[key] = req.body[key];
+      }
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(req.session.userId, {$set: update}, {new: true}).select("-__v");
+
+  if(!updatedUser) throw new ApiError(500, "Failed TO Update User!");
+
+  res.status(200).json(new ApiResponse(200, true, "Updated Successfully!", updatedUser));
+});
+
+// To Do
+const updatePassword = asyncHandler((req,res) => {
 
 });
 
-export { googleAuth, googleAuthCallback, registerUser, login, logout };
+const updateEmail = asyncHandler((req,res) => {
+
+});
+
+const updatePhoneNumber = asyncHandler((req,res) => {
+
+});
+
+export { googleAuth, googleAuthCallback, registerUser, login, logout, updateAccountInfo };
