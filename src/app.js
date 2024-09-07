@@ -50,7 +50,7 @@ app.get("/oauth/:error", (req, res) => {
 app.get("/", (req, res) => res.status(200).json({ Message: "Hi!" }));
 app.get("/home", (req, res) => {
   if (!req.session.userId)
-    return res.redirect(`http://localhost:3000/oauth/Not Authenticated!`);
+    return res.redirect(`/oauth/Not Authenticated!`);
   res.status(200).json({ Message: "Successfully Logged In! ", User: req.user });
 });
 
