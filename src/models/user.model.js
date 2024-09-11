@@ -3,8 +3,8 @@ import mongoose, { Schema } from "mongoose";
 const userSchema = new Schema({
   email: {
     type: String,
-    unique: true,
-    index: true,
+    // unique: true,
+    // index: true,
     //require: true,
   },
   password: {
@@ -13,8 +13,8 @@ const userSchema = new Schema({
   },
   phone: {
     type: Number,
-    unique: true,
-    index: true,
+    // unique: true,
+    // index: true,
     //require: true,
   },
   name: {
@@ -49,5 +49,19 @@ const userSchema = new Schema({
     default: false,
   },
 });
+
+userSchema.index(
+  {email: 1},
+  { 
+    partialFilterExpression: { email: { $exists: true } }
+  }
+);
+
+userSchema.index(
+  { phone: 1 },
+  { 
+    partialFilterExpression: { phone: { $exists: true } }
+  }
+);
 
 export const User = mongoose.model("User", userSchema);

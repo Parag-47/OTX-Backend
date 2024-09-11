@@ -10,7 +10,7 @@ import userRouter from "./routes/user.routes.js";
 
 const cookieOptions = {
   httpOnly: true,
-  secure: false, //Change To True In Production Very Important******
+  secure: process.env.PRODUCTION==="production"? true : false, //Change To True In Production Very Important******
   //sameSite: "none" //uncomment in prod so it only accept request from one site  
 };
 
@@ -44,13 +44,13 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 
 app.use("/api/v1/user", userRouter);
 
-app.get("/oauth/:error", (req, res) => {
+app.get("/oauthError/:error", (req, res) => {
   res.send(req.params.error);
 });
-app.get("/", (req, res) => res.status(200).json({ Message: "Hi!" }));
+app.get("/", (req, res) => res.status(302).redirect("https://www.onetimex.in"));
 app.get("/home", (req, res) => {
   if (!req.session.userId)
-    return res.redirect(`/oauth/Not Authenticated!`);
+    return res.redirect(`/oauthError/Not Authenticated!`);
   res.status(200).json({ Message: "Successfully Logged In! ", User: req.user });
 });
 

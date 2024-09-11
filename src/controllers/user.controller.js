@@ -14,7 +14,7 @@ async function googleAuth(req, res) {
     res.redirect(GOOGLE_AUTH_URI);
   } catch (error) {
     console.log("Error In Redirect: ", error);
-    res.redirect(`http://localhost:3000/oauth/Failed To Authenticate!`);
+    res.redirect(`/oauth/Failed To Authenticate!`);
   }
 }
 
@@ -24,7 +24,7 @@ async function googleAuthCallback(req, res) {
     if (error) {
       console.log("Error In Callback: ", error);
       return res.redirect(
-        `http://localhost:3000/oauth/Failed To Authenticate!`
+        `/oauth/Failed To Authenticate!`
       );
     }
 
@@ -50,10 +50,10 @@ async function googleAuthCallback(req, res) {
     });
 
     req.session.userId = newUser._id;
-    res.redirect("/home");
+    res.redirect("/");
   } catch (error) {
     console.log("Error In Callback: ", error);
-    res.redirect(`http://localhost:3000/oauth/Failed To Authenticate!`);
+    res.redirect(`/oauth/Failed To Authenticate!`);
   }
 }
 
@@ -93,7 +93,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   req.session.userId = newUser._id;
 
-  res.status(302).redirect("/home");
+  res.status(302).redirect("/");
 });
 
 const login = asyncHandler(async (req, res) => {
@@ -124,7 +124,7 @@ const login = asyncHandler(async (req, res) => {
 
   req.session.userId = user._id;
 
-  res.status(302).redirect("/home");
+  res.status(302).redirect("/");
 });
 
 const logout = asyncHandler(async (req, res) => {
