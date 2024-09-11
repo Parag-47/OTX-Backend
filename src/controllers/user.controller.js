@@ -40,7 +40,7 @@ async function googleAuthCallback(req, res) {
 
     if (existingUser) {
       req.session.userId = existingUser._id;
-      return res.redirect("/home");
+      return res.redirect("/");
     }
 
     // Create new user
@@ -68,7 +68,10 @@ const registerUser = asyncHandler(async (req, res) => {
   if (email) email = email.toLowerCase();
 
   const existedUser = await User.findOne({
-    $or: [{ phone: phone }, { email: email }],
+    $or: [
+      { phone: { $exists: true, $eq: phone } },
+      { email: { $exists: true, $eq: email } }
+    ],
   });
 
   if (existedUser)
@@ -107,11 +110,14 @@ const login = asyncHandler(async (req, res) => {
   if (email) email = email.toLowerCase();
 
   const user = await User.findOne({
-    $or: [{ phone: phone }, { email: email }],
+    $or: [
+      { phone: { $exists: true, $eq: phone } },
+      { email: { $exists: true, $eq: email } }
+    ],
   });
 
   if (!user) throw new ApiError(404, "User doesn't exist!");
-
+  console.log("User: ", user);
   if (!user.password)
     throw new ApiError(
       400,
