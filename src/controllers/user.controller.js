@@ -99,7 +99,7 @@ const registerUser = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
   //if (req.session.userId) return res.redirect("/home");
 
-  const { phone, email, password } = req.body;
+  let { phone, email, password } = req.body;
 
   if (!(phone || email) || !password)
     throw new ApiError(400, "Email Id/Phone Number And Password Is Required!");
