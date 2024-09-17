@@ -107,7 +107,9 @@ const signup = asyncHandler(async (req, res) => {
   console.log(newToken);
   if(!newToken) throw new ApiError(500, "Failed To Create User!");
 
-  const link =  `http://localhost:3000/api/v1/user/verifyEmail?token=${token}`;
+  const ORIGIN = process.env.NODE_ENV === "production"? process.env.PROD_ORIGIN : process.env.DEV_ORIGIN;
+
+  const link =  `${ORIGIN}/api/v1/user/verifyEmail?token=${token}`;
 
   // const options = {
   //   from: process.env.SMTP_ID, // sender addresser

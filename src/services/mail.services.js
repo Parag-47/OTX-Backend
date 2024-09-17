@@ -50,14 +50,14 @@ const SENDMAIL = async (email, link, callback) => {
     callback(info);
   } catch (error) {
     console.error("Error occurred while sending email:", error.message);
-    
+
     if (error.response) {
       console.error("SMTP Response:", error.response);
     }
 
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -68,11 +68,13 @@ const SENDMAIL = async (email, link, callback) => {
 //   return otp
 // }
 
-function createToken (email) {
+function createToken(email) {
   //const randomString = crypto.randomBytes(32).toString("hex");
   try {
-    if(!email) throw new Error("Email is Empty!");
-    const token = jwt.sign({ email }, process.env.JWT_SECRET_KEY, { expiresIn: '1h' }); // Token expires in 1 hour
+    if (!email) throw new Error("Email is Empty!");
+    const token = jwt.sign({ email }, process.env.JWT_SECRET_KEY, {
+      expiresIn: "1h",
+    }); // Token expires in 1 hour
     return token;
   } catch (error) {
     console.error(error);
@@ -91,12 +93,14 @@ async function isValidToken(token) {
 }
 
 // verify connection configuration
-transporter.verify(function (error, success) {
-  if (error) {
-    console.log(error);
-  } else {
-    console.log("Server is ready to take our messages: ", success);
-  }
-});
+async function verifySMTPConnection() {
+  await transporter.verify(async (error, success) => {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log("Server is ready to take our messages: ", success);
+    }
+  });
+}
 
-export { isTrustedEmail, SENDMAIL, createToken, isValidToken };
+export { verifySMTPConnection, isTrustedEmail, SENDMAIL, createToken, isValidToken };
