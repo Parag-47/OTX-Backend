@@ -7,13 +7,13 @@
 	},
 	"item": [
 		{
-			"name": "Register",
+			"name": "Signup",
 			"request": {
 				"method": "POST",
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"name\": \"Aditya Chutiya\", \r\n    \"phone\": 1234567890, \r\n    \"email\": \"aditya@chutiya.com\", \r\n    \"password\": \"Chutiya@1\", \r\n    \"broker\": \"Motilal Oswal\"\r\n}",
+					"raw": "{\r\n    \"name\": \"Aditya Chutiya\", \r\n    //\"phone\": 1234567890, \r\n    \"email\": \"devilking5188@gmail.com\", \r\n    \"password\": \"Chutiya@1\", \r\n    \"broker\": \"Motilal Oswal\"\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -21,13 +21,13 @@
 					}
 				},
 				"url": {
-					"raw": "{{server}}/user/register",
+					"raw": "{{vercel}}/user/signup",
 					"host": [
-						"{{server}}"
+						"{{vercel}}"
 					],
 					"path": [
 						"user",
-						"register"
+						"signup"
 					]
 				}
 			},
@@ -40,7 +40,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"name\": \"Parag Yadav\", \r\n    \"phone\": 8828422722, \r\n    \"email\": \"parag1755@gmail.com\", \r\n    \"password\": \"Parag@7155\", \r\n    \"broker\": \"Upstox\"\r\n}",
+					"raw": "{\r\n    \"name\": \"Parag Yadav\", \r\n    \"phone\": 8828422722, \r\n    \"email\": \"parag1755@gmail.com\", \r\n    //\"password\": \"Parag@7155\", \r\n    \"broker\": \"Upstox\"\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -48,9 +48,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{server}}/user/updateAccountInfo",
+					"raw": "{{vercel}}/user/updateAccountInfo",
 					"host": [
-						"{{server}}"
+						"{{vercel}}"
 					],
 					"path": [
 						"user",
@@ -67,7 +67,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    //\"email\": \"parag1755@gmail.com\",\r\n    \"phone\": 8828422722,\r\n    \"password\": \"Parag@7155\"\r\n}",
+					"raw": "{\r\n    \"email\": \"aditya@chutiya.com\",\r\n    //\"phone\": 1234567890,\r\n    \"password\": \"Chutiya@1\"\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -75,9 +75,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{server}}/user/login",
+					"raw": "{{vercel}}/user/login",
 					"host": [
-						"{{server}}"
+						"{{vercel}}"
 					],
 					"path": [
 						"user",
@@ -93,13 +93,37 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{server}}/user/logout",
+					"raw": "{{vercel}}/user/logout",
 					"host": [
-						"{{server}}"
+						"{{vercel}}"
 					],
 					"path": [
 						"user",
 						"logout"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "verifyEmail",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{vercel}}/user/verifyEmail?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImRldmlsa2luZzUxODhAZ21haWwuY29tIiwiaWF0IjoxNzI2NTA1MDE0LCJleHAiOjE3MjY1MDg2MTR9.0ksNY41G5Qs0ycyy1BCVqrAe1yYLyc56qOZhABjG2io",
+					"host": [
+						"{{vercel}}"
+					],
+					"path": [
+						"user",
+						"verifyEmail"
+					],
+					"query": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImRldmlsa2luZzUxODhAZ21haWwuY29tIiwiaWF0IjoxNzI2NTA1MDE0LCJleHAiOjE3MjY1MDg2MTR9.0ksNY41G5Qs0ycyy1BCVqrAe1yYLyc56qOZhABjG2io"
+						}
 					]
 				}
 			},
@@ -132,6 +156,11 @@
 		{
 			"key": "server",
 			"value": "http://localhost:3000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "vercel",
+			"value": "https://otx-backend.vercel.app/api/v1",
 			"type": "string"
 		}
 	]
