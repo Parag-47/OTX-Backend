@@ -94,13 +94,14 @@ async function isValidToken(token) {
 
 // verify connection configuration
 async function verifySMTPConnection() {
-  await transporter.verify(async (error, success) => {
-    if (error) {
-      console.log(error);
-    } else {
-      console.log("Server is ready to take our messages: ", success);
+  try {
+    const result = await transporter.verify();
+    if (result) {
+      console.log("SMTP Server is ready to take our messages: ", result);
     }
-  });
+  } catch (error) {
+    console.error("SMTP Connection failed: ", error);
+  }
 }
 
 export { verifySMTPConnection, isTrustedEmail, SENDMAIL, createToken, isValidToken };
