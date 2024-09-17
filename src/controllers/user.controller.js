@@ -119,7 +119,7 @@ const signup = asyncHandler(async (req, res) => {
   //   html: MAIL_TEMPLATE(link),
   // };
 
-  SENDMAIL(email, link, (info) => {
+  await SENDMAIL(email, link, (info) => {
     if (info.success) {
       console.log("Email sent successfully!", info.messageId);
     } else {
