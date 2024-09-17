@@ -1,5 +1,7 @@
 import bcrypt from "bcrypt";
 import { User } from "../models/user.model.js";
+import { Token } from "../models/token.model.js";
+import { isTrustedEmail, SENDMAIL, createToken, isValidToken } from "../services/mail.services.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
@@ -7,7 +9,7 @@ import {
   GOOGLE_AUTH_URI,
   getGoogleOAuthTokens,
   getGoogleUser,
-} from "../services/googleOauthServices.js";
+} from "../services/googleOauth.services.js";
 
 async function googleAuth(req, res) {
   try {
@@ -33,31 +35,35 @@ async function googleAuthCallback(req, res) {
     if (!tokens) throw new ApiError(500, "Empty Tokens Received!");
 
     const googleUser = await getGoogleUser(tokens);
-
+    //console.log(googleUser);
     if (!googleUser) throw new ApiError(500, "Google Profile Not Received!");
 
     const existingUser = await User.findOne({ email: googleUser.email });
 
     if (existingUser) {
       req.session.userId = existingUser._id;
-      return res.redirect("/");
+      return res.redirect(`/?profilePic=${googleUser.picture}`);
+      //return res.redirect("/");
     }
 
     // Create new user
     const newUser = await User.create({
       email: googleUser.email,
       name: googleUser.name,
+      verified_email: googleUser.verified_email
     });
 
+		if(!newUser) throw new ApiError(500, "Failed To Create User!");
+
     req.session.userId = newUser._id;
-    res.redirect("/");
+    res.redirect(`/?profilePic=${googleUser.picture}`);
   } catch (error) {
     console.log("Error In Callback: ", error);
     res.redirect(`/oauth/Failed To Authenticate!`);
   }
 }
 
-const registerUser = asyncHandler(async (req, res) => {
+const signup = asyncHandler(async (req, res) => {
   if (req.session.userId) return res.redirect("/");
 
   let { phone, email, password, name } = req.body;
@@ -79,24 +85,63 @@ const registerUser = asyncHandler(async (req, res) => {
       400,
       "This Email Or Phone Number Is Already Registered!"
     );
-    
+
+  if(!isTrustedEmail(email)) throw new ApiError(400, `We Only Accept Email Account From These Providers: ${trustedDomains}`);
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  const user = await User.create({
-    phone,
-    email,
-    name,
-    password: hashedPassword,
+	const newUser = await User.create({
+		email: email,
+		password: hashedPassword,
+	});
+
+	if(!newUser) throw new ApiError(500, "Failed To Create User!");
+
+  const token = createToken(email);
+  if(!token) throw new ApiError(500, "Failed to Create Token!");
+
+  const newToken = await Token.create({
+    userId: newUser._id,
+    token: token,
+  });
+  console.log(newToken);
+  if(!newToken) throw new ApiError(500, "Failed To Create User!");
+
+  const link =  `http://localhost:3000/api/v1/user/verifyEmail?token=${token}`;
+
+  // const options = {
+  //   from: process.env.SMTP_ID, // sender addresser
+  //   to: email, // receiver email
+  //   subject: "Email Verification! ", // Subject line
+  //   text: `Your Verification Link Is: ${link}`,
+  //   html: MAIL_TEMPLATE(link),
+  // };
+
+  SENDMAIL(email, link, (info) => {
+    if (info.success) {
+      console.log("Email sent successfully!", info.messageId);
+    } else {
+      //console.error("Failed to send email!", info.error);
+      throw new ApiError(500, "Failed to send email!", info.error);
+    }
   });
 
-  const newUser = await User.findById(user._id).select("-password -__v");
-
-  if (!user)
-    throw new ApiError(500, "Something Went Wrong While Registering New User!");
-
   req.session.userId = newUser._id;
-
   res.status(302).redirect("/");
+});
+
+const verifyEmail = asyncHandler(async (req,res)=>{
+  const { token } = req.query;
+  // console.log("token: ", token);
+  const decodedToken = isValidToken(token);
+  if(!decodedToken) throw new ApiError(500, "Failed To Verify Tokens!");
+  // console.log(decodedToken.email);
+  const doesTokenExists = await Token.findOneAndDelete({token: token });
+  // console.log("Deleted Token: ", doesTokenExists);
+  if(!doesTokenExists) throw new ApiError(500, "Invalid Token!");
+  const verifyUserEmail = await User.findByIdAndUpdate(doesTokenExists.userId, {verified_email: true});
+  if(!verifyUserEmail) throw new ApiError(500, "Failed To Verify Email!");
+  res.status(200).json(new ApiResponse(200, true, "Email Verified Successfully!"));
 });
 
 const login = asyncHandler(async (req, res) => {
@@ -172,4 +217,4 @@ const updatePhoneNumber = asyncHandler((req,res) => {
 
 });
 
-export { googleAuth, googleAuthCallback, registerUser, login, logout, updateAccountInfo };
+export { googleAuth, googleAuthCallback, signup, verifyEmail, login, logout, updateAccountInfo };

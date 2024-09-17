@@ -5,7 +5,8 @@ import checkAuthentication from "../middlewares/auth.js";
 import {
   googleAuth,
   googleAuthCallback,
-  registerUser,
+  signup,
+  verifyEmail,
   login,
   logout,
   updateAccountInfo,
@@ -15,7 +16,8 @@ const userRouter = Router();
 
 userRouter.get("/auth/google", googleAuth);
 userRouter.get("/auth/google/callback", googleAuthCallback);
-userRouter.post("/register", validateDto(validate), registerUser);
+userRouter.post("/signup", validateDto(validate), signup);
+userRouter.get("/verifyEmail", verifyEmail);
 userRouter.post("/login", validateDto(validate), login);
 userRouter.get("/logout", checkAuthentication, logout);
 userRouter.post("/updateAccountInfo", checkAuthentication, validateDto(validate), updateAccountInfo);

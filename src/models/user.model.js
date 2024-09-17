@@ -44,6 +44,14 @@ const userSchema = new Schema({
     enum: ["Facebook", "Instagram", "YouTube", "Direct"],
     default: "Direct",
   },
+  verified_email: {
+    type: Boolean,
+    default: false,
+  },
+  verified_phone: {
+    type: Boolean,
+    default: false,
+  },
   isActive: {
     type: Boolean,
     default: false,
@@ -51,16 +59,16 @@ const userSchema = new Schema({
 });
 
 userSchema.index(
-  {email: 1},
-  { 
-    partialFilterExpression: { email: { $exists: true } }
+  { email: 1 },
+  {
+    partialFilterExpression: { email: { $exists: true } },
   }
 );
 
 userSchema.index(
   { phone: 1 },
-  { 
-    partialFilterExpression: { phone: { $exists: true } }
+  {
+    partialFilterExpression: { phone: { $exists: true } },
   }
 );
 
