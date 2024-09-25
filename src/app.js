@@ -11,7 +11,8 @@ import userRouter from "./routes/user.routes.js";
 const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV==="production"? true : false, //Change To True In Production Very Important******
-  //sameSite: "none" // Set to strict/lax so it only accept request from same site  
+  sameSite: "lax", // Set to strict/lax so it only accept request from same site  
+  maxAge: 1000 * 60 * 60 * 24,
 };
 
 const sessionOptions = {
