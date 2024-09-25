@@ -10,7 +10,7 @@ import userRouter from "./routes/user.routes.js";
 
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.PRODUCTION==="production"? true : false, //Change To True In Production Very Important******
+  secure: process.env.NODE_ENV==="production"? true : false, //Change To True In Production Very Important******
   //sameSite: "none" // Set to strict/lax so it only accept request from same site  
 };
 
