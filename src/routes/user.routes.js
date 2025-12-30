@@ -1,6 +1,20 @@
 import { Router } from "express";
-import validateDto from "../middlewares/validateDto.middleware.js";
-import validate from "../validation/jsonSchema.js";
+import {
+  validateBody,
+  validateQuery,
+} from "../middlewares/validateDto.middleware.js";
+import {
+  validateSignup,
+  validateLogin,
+  validateUpdateAccountInfo,
+  validateUpdateEmail,
+  validateUpdatePhone,
+  validateForgetPassword,
+  validateResetPasswordQuery,
+  validateResetPassword,
+  validateEnquiry,
+  validateVerifyEmailQuery,
+} from "../validation/jsonSchema.js";
 import checkAuthentication from "../middlewares/auth.js";
 import {
   googleAuth,
@@ -9,17 +23,60 @@ import {
   verifyEmail,
   login,
   logout,
+  forgetPassword,
+  resetPassword,
   updateAccountInfo,
+  updateEmail,
+  updatePhoneNumber,
+  enquiry,
 } from "../controllers/user.controller.js";
 
 const userRouter = Router();
 
+// ==================== AUTH ROUTES ====================
 userRouter.get("/auth/google", googleAuth);
 userRouter.get("/auth/google/callback", googleAuthCallback);
-userRouter.post("/signup", validateDto(validate), signup);
-userRouter.get("/verifyEmail", verifyEmail);
-userRouter.post("/login", validateDto(validate), login);
+
+// ==================== PUBLIC ROUTES ====================
+userRouter.post("/signup", validateBody(validateSignup), signup);
+userRouter.get(
+  "/verifyEmail",
+  validateQuery(validateVerifyEmailQuery),
+  verifyEmail
+);
+userRouter.post("/login", validateBody(validateLogin), login);
+userRouter.post(
+  "/forgetPassword",
+  validateBody(validateForgetPassword),
+  forgetPassword
+);
+userRouter.post(
+  "/resetPassword",
+  validate(validateResetPasswordQuery, "query"),
+  validate(validateResetPassword),
+  resetPassword
+);
+userRouter.post("/enquiry", validateBody(validateEnquiry), enquiry);
+
+// ==================== PROTECTED ROUTES ====================
 userRouter.get("/logout", checkAuthentication, logout);
-userRouter.post("/updateAccountInfo", checkAuthentication, validateDto(validate), updateAccountInfo);
+userRouter.put(
+  "/updateAccountInfo",
+  checkAuthentication,
+  validateBody(validateUpdateAccountInfo),
+  updateAccountInfo
+);
+userRouter.put(
+  "/updateEmail",
+  checkAuthentication,
+  validateBody(validateUpdateEmail),
+  updateEmail
+);
+userRouter.put(
+  "/updatePhone",
+  checkAuthentication,
+  validateBody(validateUpdatePhone),
+  updatePhoneNumber
+);
 
 export default userRouter;

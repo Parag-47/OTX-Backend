@@ -1,18 +1,16 @@
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
+import ajvErrors from "ajv-errors";
 
-const ajv = new Ajv({allErrors: true});
+const ajv = new Ajv({
+  allErrors: true,
+  coerceTypes: true, // converts strings → numbers when needed
+  useDefaults: true, // fills missing defaults
+  removeAdditional: true, // removes extra fields
+  strict: false, // prevents annoying strict warnings
+});
+
 addFormats(ajv);
-
-// Test
-// function verifyJson(data) {
-//   try {
-//     const valid = validate(data);
-//     if (!valid) throw new Error(validate.errors);
-//     return valid;
-//   } catch (error) {
-//     console.error("Invalid Data, Error: ", error);
-//   }
-// }
+ajvErrors(ajv);
 
 export default ajv;

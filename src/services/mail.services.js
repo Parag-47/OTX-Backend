@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import MAIL_TEMPLATE from "../templates/mail.template.js";
 
-const trustedDomains = [
+export const trustedDomains = [
   "gmail.com",
   "outlook.com",
   "hotmail.com",
@@ -36,25 +36,28 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const SENDMAIL = async (email, link, callback) => {
+const SENDMAIL = async (email, link) => {
   const mailDetails = {
-    from: process.env.SMTP_ID, // sender addresser
-    to: email, // receiver email
-    subject: "Email Verification! ", // Subject line
+    from: process.env.SMTP_ID,
+    to: email,
+    subject: "Email Verification!",
     text: `Your Verification Link Is: ${link}`,
     html: MAIL_TEMPLATE(link),
   };
 
   try {
     const info = await transporter.sendMail(mailDetails);
-    callback(info);
+    console.log("info: ", info);
+    return {
+      success: true,
+      messageId: info.messageId,
+      response: info.response,
+    };
   } catch (error) {
     console.error("Error occurred while sending email:", error.message);
-
     if (error.response) {
       console.error("SMTP Response:", error.response);
     }
-
     return {
       success: false,
       error: error.message,
@@ -104,4 +107,10 @@ async function verifySMTPConnection() {
   }
 }
 
-export { verifySMTPConnection, isTrustedEmail, SENDMAIL, createToken, isValidToken };
+export {
+  verifySMTPConnection,
+  isTrustedEmail,
+  SENDMAIL,
+  createToken,
+  isValidToken,
+};

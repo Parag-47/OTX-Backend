@@ -1,15 +1,87 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { User } from "../models/user.model.js";
 import { Token } from "../models/token.model.js";
-import { isTrustedEmail, SENDMAIL, createToken, isValidToken } from "../services/mail.services.js";
+import { Inquiry } from "../models/inquiry.model.js";
+import {
+  trustedDomains,
+  isTrustedEmail,
+  SENDMAIL,
+  createToken,
+  isValidToken,
+} from "../services/mail.services.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
+import generateResetToken from "../utils/generateResetToken.js";
 import {
   GOOGLE_AUTH_URI,
   getGoogleOAuthTokens,
   getGoogleUser,
 } from "../services/googleOauth.services.js";
+
+async function verifyAndConsumeToken(token) {
+  const decodedToken = isValidToken(token);
+  if (!decodedToken) {
+    await Token.findOneAndDelete({ token: token });
+    throw new ApiError(400, "Invalid or expired token!");
+  }
+
+  const tokenDoc = await Token.findOneAndDelete({ token: token });
+  if (!tokenDoc) throw new ApiError(400, "Token not found or already used!");
+
+  return tokenDoc;
+}
+
+/**
+ * Get user data without sensitive fields
+ * @param {Object} user - Mongoose user document
+ * @returns {Object} Sanitized user object
+ */
+function sanitizeUser(user) {
+  const userObj = user.toObject();
+  delete userObj.password;
+  delete userObj.__v;
+  delete userObj.resetPasswordTokenHash;
+  delete userObj.resetPasswordExpiresAt;
+  return userObj;
+}
+
+/**
+ * Send verification email to user
+ * @param {string} email - User email
+ * @param {string} userId - User ID for token
+ */
+async function sendVerificationEmail(email, userId) {
+  const token = createToken(email);
+  if (!token) throw new ApiError(500, "Failed to create token!");
+
+  const newToken = await Token.create({
+    userId: userId,
+    token: token,
+  });
+
+  if (!newToken) throw new ApiError(500, "Failed to save token!");
+
+  const ORIGIN =
+    process.env.NODE_ENV === "production"
+      ? process.env.PROD_ORIGIN
+      : process.env.DEV_ORIGIN;
+
+  const link = `${ORIGIN}/api/v1/user/verifyEmail?token=${token}`;
+
+  const emailResult = await SENDMAIL(email, link);
+
+  if (!emailResult.success) {
+    console.error("Failed to send verification email:", emailResult.error);
+    throw new ApiError(
+      500,
+      "Failed to send verification email. Please try again later."
+    );
+  }
+
+  console.log("Verification email sent successfully!", emailResult.messageId);
+}
 
 async function googleAuth(req, res) {
   try {
@@ -25,9 +97,7 @@ async function googleAuthCallback(req, res) {
     const { error, code } = req.query;
     if (error) {
       console.log("Error In Callback: ", error);
-      return res.redirect(
-        `/oauth/Failed To Authenticate!`
-      );
+      return res.redirect(`/oauth/Failed To Authenticate!`);
     }
 
     const tokens = await getGoogleOAuthTokens(code);
@@ -35,7 +105,6 @@ async function googleAuthCallback(req, res) {
     if (!tokens) throw new ApiError(500, "Empty Tokens Received!");
 
     const googleUser = await getGoogleUser(tokens);
-    //console.log(googleUser);
     if (!googleUser) throw new ApiError(500, "Google Profile Not Received!");
 
     const existingUser = await User.findOne({ email: googleUser.email });
@@ -43,17 +112,16 @@ async function googleAuthCallback(req, res) {
     if (existingUser) {
       req.session.userId = existingUser._id;
       return res.redirect(`/?profilePic=${googleUser.picture}`);
-      //return res.redirect("/");
     }
 
     // Create new user
     const newUser = await User.create({
       email: googleUser.email,
       name: googleUser.name,
-      verified_email: googleUser.verified_email
+      verified_email: googleUser.verified_email,
     });
 
-		if(!newUser) throw new ApiError(500, "Failed To Create User!");
+    if (!newUser) throw new ApiError(500, "Failed To Create User!");
 
     req.session.userId = newUser._id;
     res.redirect(`/?profilePic=${googleUser.picture}`);
@@ -76,7 +144,7 @@ const signup = asyncHandler(async (req, res) => {
   const existedUser = await User.findOne({
     $or: [
       { phone: { $exists: true, $eq: phone } },
-      { email: { $exists: true, $eq: email } }
+      { email: { $exists: true, $eq: email } },
     ],
   });
 
@@ -86,69 +154,44 @@ const signup = asyncHandler(async (req, res) => {
       "This Email Or Phone Number Is Already Registered!"
     );
 
-  if(!isTrustedEmail(email)) throw new ApiError(400, `We Only Accept Email Account From These Providers: ${trustedDomains}`);
-
   const hashedPassword = await bcrypt.hash(password, 10);
 
-	const newUser = await User.create({
-		email: email,
-		password: hashedPassword,
-	});
-
-	if(!newUser) throw new ApiError(500, "Failed To Create User!");
-
-  const token = createToken(email);
-  if(!token) throw new ApiError(500, "Failed to Create Token!");
-
-  const newToken = await Token.create({
-    userId: newUser._id,
-    token: token,
+  const newUser = await User.create({
+    email: email,
+    password: hashedPassword,
+    name: name,
   });
-  console.log(newToken);
-  if(!newToken) throw new ApiError(500, "Failed To Create User!");
 
-  const ORIGIN = process.env.NODE_ENV === "production"? process.env.PROD_ORIGIN : process.env.DEV_ORIGIN;
+  if (!newUser) throw new ApiError(500, "Failed To Create User!");
 
-  const link =  `${ORIGIN}/api/v1/user/verifyEmail?token=${token}`;
-
-  // const options = {
-  //   from: process.env.SMTP_ID, // sender addresser
-  //   to: email, // receiver email
-  //   subject: "Email Verification! ", // Subject line
-  //   text: `Your Verification Link Is: ${link}`,
-  //   html: MAIL_TEMPLATE(link),
-  // };
-
-  await SENDMAIL(email, link, (info) => {
-    if (info.success) {
-      console.log("Email sent successfully!", info.messageId);
-    } else {
-      //console.error("Failed to send email!", info.error);
-      throw new ApiError(500, "Failed to send email!", info.error);
-    }
-  });
+  // Send verification email using helper function
+  await sendVerificationEmail(email, newUser._id);
 
   req.session.userId = newUser._id;
   res.status(302).redirect("/");
 });
 
-const verifyEmail = asyncHandler(async (req,res)=>{
+const verifyEmail = asyncHandler(async (req, res) => {
   const { token } = req.query;
-  // console.log("token: ", token);
-  const decodedToken = isValidToken(token);
-  if(!decodedToken) throw new ApiError(500, "Failed To Verify Tokens!");
-  // console.log(decodedToken.email);
-  const doesTokenExists = await Token.findOneAndDelete({token: token });
-  // console.log("Deleted Token: ", doesTokenExists);
-  if(!doesTokenExists) throw new ApiError(500, "Invalid Token!");
-  const verifyUserEmail = await User.findByIdAndUpdate(doesTokenExists.userId, {verified_email: true});
-  if(!verifyUserEmail) throw new ApiError(500, "Failed To Verify Email!");
-  res.status(200).json(new ApiResponse(200, true, "Email Verified Successfully!"));
+
+  // Use helper function to verify and consume token
+  const tokenDoc = await verifyAndConsumeToken(token);
+
+  // Update user's email verification status
+  const user = await User.findByIdAndUpdate(
+    tokenDoc.userId,
+    { verified_email: true },
+    { new: true }
+  );
+
+  if (!user) throw new ApiError(500, "Failed To Verify Email!");
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, true, "Email Verified Successfully!"));
 });
 
 const login = asyncHandler(async (req, res) => {
-  //if (req.session.userId) return res.redirect("/home");
-
   let { phone, email, password } = req.body;
 
   if (!(phone || email) || !password)
@@ -159,12 +202,12 @@ const login = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     $or: [
       { phone: { $exists: true, $eq: phone } },
-      { email: { $exists: true, $eq: email } }
+      { email: { $exists: true, $eq: email } },
     ],
   });
 
   if (!user) throw new ApiError(404, "User doesn't exist!");
-  console.log("User: ", user);
+
   if (!user.password)
     throw new ApiError(
       400,
@@ -175,13 +218,20 @@ const login = asyncHandler(async (req, res) => {
 
   if (!isPasswordValid) throw new ApiError(400, "Incorrect Password!");
 
-  req.session.userId = user._id;
+  req.session.regenerate((err) => {
+    if (err) throw new ApiError(500, "Session regeneration failed");
 
-  res.status(302).redirect("/");
+    // Attach auth data to the new session
+    req.session.userId = user._id;
+
+    // Return user data (sanitized)
+    const userData = sanitizeUser(user);
+
+    res.status(200).json(new ApiResponse(200, userData, "Login Successful!"));
+  });
 });
 
 const logout = asyncHandler(async (req, res) => {
-  //if (!req.session.userId) throw new ApiError(400, "Please Login!");
   req.session.destroy((err) => {
     if (err) {
       return res.status(500).send("Failed to log out");
@@ -191,32 +241,279 @@ const logout = asyncHandler(async (req, res) => {
   res.status(302).clearCookie("sessionId").redirect("/");
 });
 
-const updateAccountInfo = asyncHandler(async (req, res) => {
-  const update = {};
-  for (const key of Object.keys(req.body)){
-      if (req.body[key] !== '' && req.body[key] !== undefined && req.body[key] !== null) {
-          update[key] = req.body[key];
-      }
+const forgetPassword = asyncHandler(async (req, res) => {
+  let { email } = req.body;
+
+  if (!email) throw new ApiError(400, "Email is required!");
+
+  email = email.toLowerCase();
+
+  const user = await User.findOne({ email });
+  if (!user) throw new ApiError(400, "No user found with this email!");
+
+  // Generate reset token
+  const token = createToken(email);
+  if (!token) throw new ApiError(500, "Failed to create reset token!");
+
+  // Create token in database with type and expiry
+  const newToken = await Token.create({
+    userId: user._id,
+    token: token,
+    type: "password_reset",
+    expiresAt: Date.now() + 3600000, // 1 hour from now
+  });
+
+  if (!newToken) throw new ApiError(500, "Failed to save reset token!");
+
+  // Build reset link
+  const ORIGIN =
+    process.env.NODE_ENV === "production"
+      ? process.env.PROD_ORIGIN
+      : process.env.DEV_ORIGIN;
+
+  const resetLink = `${ORIGIN}/api/v1/user/resetPassword?token=${token}`;
+
+  // Send email
+  const emailResult = await SENDMAIL(email, resetLink);
+
+  if (!emailResult.success) {
+    console.error("Failed to send reset email:", emailResult.error);
+    throw new ApiError(500, "Failed to send reset email!");
   }
 
-  const updatedUser = await User.findByIdAndUpdate(req.session.userId, {$set: update}, {new: true}).select("-__v");
+  console.log("Password reset email sent!", emailResult.messageId);
 
-  if(!updatedUser) throw new ApiError(500, "Failed TO Update User!");
-
-  res.status(200).json(new ApiResponse(200, true, "Updated Successfully!", updatedUser));
+  res.status(200).json({
+    success: true,
+    message: "Password reset link sent successfully! Link expires in 1 hour.",
+  });
 });
 
-// To Do
-const updatePassword = asyncHandler((req,res) => {
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token } = req.query;
+  const { password, confirmPassword } = req.body;
 
+  // Validate inputs
+  if (!token) throw new ApiError(400, "Reset token is required!");
+  if (!password || !confirmPassword)
+    throw new ApiError(400, "Password and confirm password are required!");
+
+  if (password !== confirmPassword)
+    throw new ApiError(400, "Passwords do not match!");
+
+  if (password.length < 6)
+    throw new ApiError(400, "Password must be at least 6 characters long!");
+
+  // Verify token is valid
+  const decodedToken = isValidToken(token);
+  if (!decodedToken) {
+    // Clean up invalid token
+    await Token.findOneAndDelete({ token: token });
+    throw new ApiError(400, "Invalid or malformed reset token!");
+  }
+
+  // Find and delete token (consume it) - check type and expiry
+  const tokenDoc = await Token.findOneAndDelete({
+    token: token,
+    type: "password_reset",
+    expiresAt: { $gt: Date.now() },
+  });
+
+  if (!tokenDoc)
+    throw new ApiError(400, "Invalid, expired, or already used reset token!");
+
+  // Find user
+  const user = await User.findById(tokenDoc.userId);
+  if (!user) throw new ApiError(404, "User not found!");
+
+  // Hash new password
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  // Update password
+  user.password = hashedPassword;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message:
+      "Password reset successfully! You can now login with your new password.",
+  });
 });
 
-const updateEmail = asyncHandler((req,res) => {
+const updateAccountInfo = asyncHandler(async (req, res) => {
+  const update = {};
+  for (const key of Object.keys(req.body)) {
+    if (
+      req.body[key] !== "" &&
+      req.body[key] !== undefined &&
+      req.body[key] !== null
+    ) {
+      update[key] = req.body[key];
+    }
+  }
 
+  const updatedUser = await User.findByIdAndUpdate(
+    req.session.userId,
+    { $set: update },
+    { new: true }
+  ).select("-__v -password -resetPasswordTokenHash -resetPasswordExpiresAt");
+
+  if (!updatedUser) throw new ApiError(500, "Failed TO Update User!");
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, updatedUser, "Updated Successfully!"));
 });
 
-const updatePhoneNumber = asyncHandler((req,res) => {
+const updateEmail = asyncHandler(async (req, res) => {
+  let { email } = req.body;
 
+  if (!email) throw new ApiError(400, "Email is required!");
+
+  email = email.toLowerCase().trim();
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new ApiError(400, "Invalid email format!");
+  }
+
+  // Check if email already exists for another user
+  const existingUser = await User.findOne({
+    email,
+    _id: { $ne: req.session.userId },
+  });
+
+  if (existingUser) {
+    throw new ApiError(409, "Email already registered with another account!");
+  }
+
+  // Update user email and reset verification status
+  const user = await User.findByIdAndUpdate(
+    req.session.userId,
+    {
+      email,
+      verified_email: false,
+    },
+    { new: true, runValidators: true }
+  ).select("-__v -password -resetPasswordTokenHash -resetPasswordExpiresAt");
+
+  if (!user) throw new ApiError(404, "User not found!");
+
+  // Send verification email using helper function
+  await sendVerificationEmail(email, user._id);
+
+  res.status(200).json({
+    success: true,
+    message:
+      "Email updated successfully! Please check your inbox to verify your new email.",
+    data: user,
+  });
 });
 
-export { googleAuth, googleAuthCallback, signup, verifyEmail, login, logout, updateAccountInfo };
+const updatePhoneNumber = asyncHandler(async (req, res) => {
+  let { phone } = req.body;
+
+  if (!phone) throw new ApiError(400, "Phone number is required!");
+
+  // Convert to string and remove any non-digit characters
+  phone = String(phone).replace(/\D/g, "");
+
+  // Validate phone number (basic validation for 10 digits)
+  if (phone.length < 10 || phone.length > 15) {
+    throw new ApiError(
+      400,
+      "Invalid phone number! Must be between 10-15 digits."
+    );
+  }
+
+  // Convert to number for storage
+  const phoneNumber = Number(phone);
+
+  // Check if phone already exists for another user
+  const existingUser = await User.findOne({
+    phone: phoneNumber,
+    _id: { $ne: req.session.userId },
+  });
+
+  if (existingUser) {
+    throw new ApiError(
+      409,
+      "Phone number already registered with another account!"
+    );
+  }
+
+  // Update user phone
+  const user = await User.findByIdAndUpdate(
+    req.session.userId,
+    {
+      phone: phoneNumber,
+      verified_phone: false,
+    },
+    { new: true, runValidators: true }
+  ).select("-__v -password -resetPasswordTokenHash -resetPasswordExpiresAt");
+
+  if (!user) throw new ApiError(404, "User not found!");
+
+  res.status(200).json({
+    success: true,
+    message: "Phone number updated successfully!",
+    data: user,
+  });
+});
+
+const enquiry = asyncHandler(async (req, res) => {
+  const { name, email, phone, inquiryType, message } = req.body;
+
+  // Validate required fields
+  if (!name || !email || !phone || !inquiryType || !message) {
+    throw new ApiError(400, "All fields are required!");
+  }
+
+  // Validate inquiry type
+  const validTypes = ["General Inquiry", "Partnership", "Support"];
+  if (!validTypes.includes(inquiryType)) {
+    throw new ApiError(400, "Invalid inquiry type!");
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new ApiError(400, "Invalid email format!");
+  }
+
+  // Create inquiry
+  const inquiry = await Inquiry.create({
+    name: name.trim(),
+    email: email.toLowerCase().trim(),
+    phone: String(phone).trim(),
+    inquiryType,
+    message: message.trim(),
+  });
+
+  if (!inquiry) {
+    throw new ApiError(500, "Failed to submit inquiry!");
+  }
+
+  res.status(201).json({
+    success: true,
+    message:
+      "Your inquiry has been submitted successfully! We'll get back to you soon.",
+    data: inquiry,
+  });
+});
+
+export {
+  googleAuth,
+  googleAuthCallback,
+  signup,
+  verifyEmail,
+  login,
+  logout,
+  forgetPassword,
+  resetPassword,
+  updateAccountInfo,
+  updateEmail,
+  updatePhoneNumber,
+  enquiry,
+};
