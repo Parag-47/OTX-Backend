@@ -52,8 +52,8 @@ userRouter.post(
 );
 userRouter.post(
   "/resetPassword",
-  validate(validateResetPasswordQuery, "query"),
-  validate(validateResetPassword),
+  validateQuery(validateResetPasswordQuery),
+  validateBody(validateResetPassword),
   resetPassword
 );
 userRouter.post("/enquiry", validateBody(validateEnquiry), enquiry);
