@@ -7,11 +7,12 @@ import hpp from "hpp";
 import session from "express-session";
 import valkeyStore from "./db/valkey.js";
 import userRouter from "./routes/user.routes.js";
+import adminRouter from "./routes/admin.routes.js";
 
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV==="production"? true : false, //Change To True In Production Very Important******
-  sameSite: "lax", // Set to strict/lax so it only accept request from same site  
+  secure: process.env.NODE_ENV === "production" ? true : false, //Change To True In Production Very Important******
+  sameSite: "lax", // Set to strict/lax so it only accept request from same site
   maxAge: 1000 * 60 * 60 * 24,
 };
 
@@ -23,7 +24,7 @@ const sessionOptions = {
   secret: process.env.SESSION_SECRET,
   cookie: cookieOptions,
   maxAge: 1000 * 60 * 60 * 24,
-}
+};
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 //app.use(express.static("public"));
 
 app.use("/api/v1/user", userRouter);
+app.use("/api/v1/admin", adminRouter);
 
 app.get("/oauthError/:error", (req, res) => {
   res.send(req.params.error);

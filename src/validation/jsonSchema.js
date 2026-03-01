@@ -284,7 +284,7 @@ const enquirySchema = {
     },
     phone: {
       type: "string",
-      minLength: 1,
+      minLength: 7,
       errorMessage: {
         minLength: "Phone number is required",
       },

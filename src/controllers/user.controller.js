@@ -136,9 +136,6 @@ const signup = asyncHandler(async (req, res) => {
 
   let { phone, email, password, name } = req.body;
 
-  if (!(phone || email) || !password || !name)
-    throw new ApiError(400, "All fields are required!");
-
   if (email) email = email.toLowerCase();
 
   const existedUser = await User.findOne({
@@ -168,7 +165,9 @@ const signup = asyncHandler(async (req, res) => {
   await sendVerificationEmail(email, newUser._id);
 
   req.session.userId = newUser._id;
-  res.status(302).redirect("/");
+  res
+    .status(200)
+    .json(new ApiResponse(200, true, "User registered successfully!"));
 });
 
 const verifyEmail = asyncHandler(async (req, res) => {
@@ -193,9 +192,6 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
 const login = asyncHandler(async (req, res) => {
   let { phone, email, password } = req.body;
-
-  if (!(phone || email) || !password)
-    throw new ApiError(400, "Email Id/Phone Number And Password Is Required!");
 
   if (email) email = email.toLowerCase();
 
@@ -244,8 +240,6 @@ const logout = asyncHandler(async (req, res) => {
 const forgetPassword = asyncHandler(async (req, res) => {
   let { email } = req.body;
 
-  if (!email) throw new ApiError(400, "Email is required!");
-
   email = email.toLowerCase();
 
   const user = await User.findOne({ email });
@@ -293,16 +287,8 @@ const resetPassword = asyncHandler(async (req, res) => {
   const { token } = req.query;
   const { password, confirmPassword } = req.body;
 
-  // Validate inputs
-  if (!token) throw new ApiError(400, "Reset token is required!");
-  if (!password || !confirmPassword)
-    throw new ApiError(400, "Password and confirm password are required!");
-
   if (password !== confirmPassword)
     throw new ApiError(400, "Passwords do not match!");
-
-  if (password.length < 6)
-    throw new ApiError(400, "Password must be at least 6 characters long!");
 
   // Verify token is valid
   const decodedToken = isValidToken(token);
@@ -368,16 +354,6 @@ const updateAccountInfo = asyncHandler(async (req, res) => {
 const updateEmail = asyncHandler(async (req, res) => {
   let { email } = req.body;
 
-  if (!email) throw new ApiError(400, "Email is required!");
-
-  email = email.toLowerCase().trim();
-
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    throw new ApiError(400, "Invalid email format!");
-  }
-
   // Check if email already exists for another user
   const existingUser = await User.findOne({
     email,
@@ -413,19 +389,6 @@ const updateEmail = asyncHandler(async (req, res) => {
 
 const updatePhoneNumber = asyncHandler(async (req, res) => {
   let { phone } = req.body;
-
-  if (!phone) throw new ApiError(400, "Phone number is required!");
-
-  // Convert to string and remove any non-digit characters
-  phone = String(phone).replace(/\D/g, "");
-
-  // Validate phone number (basic validation for 10 digits)
-  if (phone.length < 10 || phone.length > 15) {
-    throw new ApiError(
-      400,
-      "Invalid phone number! Must be between 10-15 digits."
-    );
-  }
 
   // Convert to number for storage
   const phoneNumber = Number(phone);
@@ -465,23 +428,6 @@ const updatePhoneNumber = asyncHandler(async (req, res) => {
 const enquiry = asyncHandler(async (req, res) => {
   const { name, email, phone, inquiryType, message } = req.body;
 
-  // Validate required fields
-  if (!name || !email || !phone || !inquiryType || !message) {
-    throw new ApiError(400, "All fields are required!");
-  }
-
-  // Validate inquiry type
-  const validTypes = ["General Inquiry", "Partnership", "Support"];
-  if (!validTypes.includes(inquiryType)) {
-    throw new ApiError(400, "Invalid inquiry type!");
-  }
-
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    throw new ApiError(400, "Invalid email format!");
-  }
-
   // Create inquiry
   const inquiry = await Inquiry.create({
     name: name.trim(),
@@ -503,6 +449,19 @@ const enquiry = asyncHandler(async (req, res) => {
   });
 });
 
+const getUserProfile = asyncHandler(async (req, res) => {
+  const userId = req.userId;
+
+  const user = await User.findById(userId).select(
+    "-__v -password -resetPasswordTokenHash -resetPasswordExpiresAt"
+  );
+  if (!user) throw new ApiError(404, "User not found!");
+
+  res
+    .status(200)
+    .json(new ApiResponse({ statusCode: 200, success: true, data: user }));
+});
+
 export {
   googleAuth,
   googleAuthCallback,
@@ -516,4 +475,5 @@ export {
   updateEmail,
   updatePhoneNumber,
   enquiry,
+  getUserProfile,
 };
