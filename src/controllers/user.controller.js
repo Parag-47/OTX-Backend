@@ -228,13 +228,23 @@ const login = asyncHandler(async (req, res) => {
 });
 
 const logout = asyncHandler(async (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).send("Failed to log out");
-    }
+  await new Promise((resolve, reject) => {
+    req.session.destroy((err) => {
+      if (err) return reject(err);
+      resolve();
+    });
   });
 
-  res.status(302).clearCookie("sessionId").redirect("/");
+  res.clearCookie("sessionId", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Logged out successfully",
+  });
 });
 
 const forgetPassword = asyncHandler(async (req, res) => {
