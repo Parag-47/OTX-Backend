@@ -12,7 +12,7 @@ import adminRouter from "./routes/admin.routes.js";
 const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production" ? true : false, //Change To True In Production Very Important******
-  sameSite: "lax", // Set to strict/lax so it only accept request from same site
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Set to strict/lax so it only accept request from same site
   maxAge: 1000 * 60 * 60 * 24,
 };
 
@@ -36,6 +36,7 @@ app.use(mongoSanitize());
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
+    credentials: true,
   })
 );
 app.use(session(sessionOptions));
