@@ -138,11 +138,18 @@ const signup = asyncHandler(async (req, res) => {
 
   if (email) email = email.toLowerCase();
 
+  const conditions = [];
+
+  if (phone) {
+    conditions.push({ phone });
+  }
+
+  if (email) {
+    conditions.push({ email });
+  }
+
   const existedUser = await User.findOne({
-    $or: [
-      { phone: { $exists: true, $eq: phone } },
-      { email: { $exists: true, $eq: email } },
-    ],
+    $or: conditions,
   });
 
   if (existedUser)
