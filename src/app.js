@@ -11,7 +11,7 @@ import adminRouter from "./routes/admin.routes.js";
 
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production" ? true : false, //Change To True In Production Very Important******
+  secure: process.env.NODE_ENV === "production", //Always Set True In Production Very Important******
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Set to strict/lax so it only accept request from same site
   maxAge: 1000 * 60 * 60 * 24,
 };
@@ -23,23 +23,23 @@ const sessionOptions = {
   saveUninitialized: false, // false recommended: only save session when data exists
   secret: process.env.SESSION_SECRET,
   cookie: cookieOptions,
-  maxAge: 1000 * 60 * 60 * 24,
+  // maxAge: 1000 * 60 * 60 * 24, // Max age should be in cookies option
 };
 
 const app = express();
 
-//app.set("trust proxy", 1); //for proxy related issues
+if (process.env.NODE_ENV === "production") app.set("trust proxy", 1); //for proxy related issues
 
 app.use(helmet());
 app.use(hpp());
 app.use(mongoSanitize());
+app.use(session(sessionOptions));
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
     credentials: true,
   })
 );
-app.use(session(sessionOptions));
 app.use(morgan("combined"));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
