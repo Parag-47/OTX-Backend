@@ -13,6 +13,7 @@ const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production", //Always Set True In Production Very Important******
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Set to strict/lax so it only accept request from same site
+  domain: ".onetimex.in",
   maxAge: 1000 * 60 * 60 * 24,
 };
 

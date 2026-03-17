@@ -108,13 +108,13 @@ async function googleAuthCallback(req, res) {
     if (!googleUser) throw new ApiError(500, "Google Profile Not Received!");
 
     const existingUser = await User.findOne({ email: googleUser.email });
-    console.log("Session before:", req.session);
+    // console.log("Session before:", req.session);
     if (existingUser) {
       req.session.regenerate((err) => {
         if (err) throw new ApiError(500, "Session regeneration failed");
 
         req.session.userId = existingUser._id;
-        console.log("Session after:", req.session);
+        // console.log("Session after:", req.session);
         req.session.save(() => {
           res.redirect(`/?profilePic=${googleUser.picture}`);
         });
@@ -132,8 +132,17 @@ async function googleAuthCallback(req, res) {
 
     if (!newUser) throw new ApiError(500, "Failed To Create User!");
 
-    req.session.userId = newUser._id;
-    res.redirect(`/?profilePic=${googleUser.picture}`);
+    req.session.regenerate((err) => {
+      if (err) throw new ApiError(500, "Session regeneration failed");
+
+      req.session.userId = newUser._id;
+
+      req.session.save((err) => {
+        if (err) throw new ApiError(500, "Session save failed");
+
+        res.redirect(`/?profilePic=${googleUser.picture}`);
+      });
+    });
   } catch (error) {
     console.log("Error In Callback: ", error);
     res.redirect(`/oauth/Failed To Authenticate!`);
@@ -233,13 +242,15 @@ const login = asyncHandler(async (req, res) => {
   req.session.regenerate((err) => {
     if (err) throw new ApiError(500, "Session regeneration failed");
 
-    // Attach auth data to the new session
     req.session.userId = user._id;
 
-    // Return user data (sanitized)
-    const userData = sanitizeUser(user);
+    req.session.save((err) => {
+      if (err) throw new ApiError(500, "Session save failed");
 
-    res.status(200).json(new ApiResponse(200, userData, "Login Successful!"));
+      const userData = sanitizeUser(user);
+
+      res.status(200).json(new ApiResponse(200, userData, "Login Successful!"));
+    });
   });
 });
 
