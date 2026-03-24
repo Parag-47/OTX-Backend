@@ -105,18 +105,19 @@ async function googleAuthCallback(req, res) {
     if (!tokens) throw new ApiError(500, "Empty Tokens Received!");
 
     const googleUser = await getGoogleUser(tokens);
+
     if (!googleUser) throw new ApiError(500, "Google Profile Not Received!");
 
     const existingUser = await User.findOne({ email: googleUser.email });
-    // console.log("Session before:", req.session);
     if (existingUser) {
       req.session.regenerate((err) => {
         if (err) throw new ApiError(500, "Session regeneration failed");
 
         req.session.userId = existingUser._id;
-        // console.log("Session after:", req.session);
         req.session.save(() => {
-          res.redirect(`/?profilePic=${googleUser.picture}`);
+          res.redirect(
+            `/?profilePic=${googleUser.picture}&email=${googleUser.email}&name=${googleUser.name}`
+          );
         });
       });
 

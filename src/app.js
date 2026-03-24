@@ -13,7 +13,7 @@ const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production", //Always Set True In Production Very Important******
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Set to strict/lax so it only accept request from same site
-  domain: ".onetimex.in",
+  domain: process.env.NODE_ENV === "production" ? ".onetimex.in" : undefined,
   maxAge: 1000 * 60 * 60 * 24,
 };
 
@@ -52,7 +52,13 @@ app.use("/api/v1/admin", adminRouter);
 app.get("/oauthError/:error", (req, res) => {
   res.send(req.params.error);
 });
-app.get("/", (req, res) => res.status(302).redirect("https://www.onetimex.in"));
+
+app.get("/", (req, res) => {
+  if (process.env.NODE_ENV === "production")
+    res.status(302).redirect("https://www.onetimex.in");
+  res.status(302).redirect("http://localhost:3000");
+});
+
 app.get("/home", (req, res) => {
   if (!req.session.userId)
     return res.redirect(`/oauthError/Not Authenticated!`);
