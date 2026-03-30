@@ -488,7 +488,7 @@ const enquiry = asyncHandler(async (req, res) => {
 });
 
 const getUserProfile = asyncHandler(async (req, res) => {
-  const userId = req.userId;
+  const userId = req.session.userId;
 
   const user = await User.findById(userId).select(
     "-__v -password -resetPasswordTokenHash -resetPasswordExpiresAt"
