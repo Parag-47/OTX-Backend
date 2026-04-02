@@ -50,13 +50,13 @@ app.use("/api/v1/user", userRouter);
 app.use("/api/v1/admin", adminRouter);
 
 app.get("/oauthError/:error", (req, res) => {
-  res.send(req.params.error);
+  return res.send(req.params.error);
 });
 
 app.get("/", (req, res) => {
   if (process.env.NODE_ENV === "production")
-    res.status(302).redirect("https://www.onetimex.in");
-  res.status(302).redirect("http://localhost:3000");
+    return res.status(302).redirect(process.env.PROD_FRONTEND_ORIGIN);
+  return res.status(302).redirect(process.env.DEV_FRONTEND_ORIGIN);
 });
 
 app.get("/home", (req, res) => {
