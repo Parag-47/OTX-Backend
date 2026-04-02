@@ -20,6 +20,11 @@ import {
   getGoogleUser,
 } from "../services/googleOauth.services.js";
 
+const frontendOrigin =
+  process.env.NODE_ENV === "production"
+    ? process.env.PROD_FRONTEND_ORIGIN
+    : process.env.DEV_FRONTEND_ORIGIN;
+
 async function verifyAndConsumeToken(token) {
   const decodedToken = isValidToken(token);
   if (!decodedToken) {
@@ -116,7 +121,7 @@ async function googleAuthCallback(req, res) {
         req.session.userId = existingUser._id;
         req.session.save(() => {
           res.redirect(
-            `/?profilePic=${googleUser.picture}&email=${googleUser.email}&name=${googleUser.name}`
+            `${frontendOrigin}/?profilePic=${googleUser.picture}&email=${googleUser.email}&name=${googleUser.name}`
           );
         });
       });
@@ -141,7 +146,9 @@ async function googleAuthCallback(req, res) {
       req.session.save((err) => {
         if (err) throw new ApiError(500, "Session save failed");
 
-        res.redirect(`/?profilePic=${googleUser.picture}`);
+        res.redirect(
+          `${frontendOrigin}/?profilePic=${googleUser.picture}&email=${googleUser.email}&name=${googleUser.name}`
+        );
       });
     });
   } catch (error) {
