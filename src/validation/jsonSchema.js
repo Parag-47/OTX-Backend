@@ -210,7 +210,7 @@ const forgetPasswordSchema = {
 };
 
 // ==================== RESET PASSWORD SCHEMA ====================
-const resetPasswordQuerySchema = {
+const resetPasswordSchema = {
   type: "object",
   properties: {
     token: {
@@ -220,20 +220,6 @@ const resetPasswordQuerySchema = {
         minLength: "Token is required",
       },
     },
-  },
-  required: ["token"],
-  additionalProperties: true,
-  errorMessage: {
-    required: {
-      token: "Reset token is required",
-    },
-  },
-};
-
-// ==================== RESET PASSWORD SCHEMA ====================
-const resetPasswordSchema = {
-  type: "object",
-  properties: {
     password: {
       type: "string",
       minLength: 6,
@@ -251,10 +237,11 @@ const resetPasswordSchema = {
       },
     },
   },
-  required: ["password", "confirmPassword"],
+  required: ["token", "password", "confirmPassword"],
   additionalProperties: false,
   errorMessage: {
     required: {
+      token: "Reset token is required",
       password: "Password is required",
       confirmPassword: "Confirm password is required",
     },
@@ -349,7 +336,6 @@ export const validateUpdateAccountInfo = ajv.compile(updateAccountInfoSchema);
 export const validateUpdateEmail = ajv.compile(updateEmailSchema);
 export const validateUpdatePhone = ajv.compile(updatePhoneSchema);
 export const validateForgetPassword = ajv.compile(forgetPasswordSchema);
-export const validateResetPasswordQuery = ajv.compile(resetPasswordQuerySchema);
 export const validateResetPassword = ajv.compile(resetPasswordSchema);
 export const validateEnquiry = ajv.compile(enquirySchema);
 export const validateVerifyEmailQuery = ajv.compile(verifyEmailQuerySchema);

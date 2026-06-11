@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
-import MAIL_TEMPLATE from "../templates/mail.template.js";
+import EMAIL_VERIFICATION_TEMPLATE from "../templates/verifyMail.template.js";
+import PASSWORD_RESET_TEMPLATE from "../templates/resetPasswordMail.template.js";
 
 export const trustedDomains = [
   "gmail.com",
@@ -36,28 +37,49 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const SENDMAIL = async (email, link) => {
+const EMAIL_TYPES = {
+  EMAIL_VERIFICATION: {
+    subject: "Verify Your Email Address",
+    template: EMAIL_VERIFICATION_TEMPLATE,
+  },
+  PASSWORD_RESET: {
+    subject: "Reset Your Password",
+    template: PASSWORD_RESET_TEMPLATE,
+  },
+};
+
+const SENDMAIL = async (type, email, link) => {
+  const config = EMAIL_TYPES[type];
+
+  if (!config) {
+    return {
+      success: false,
+      error: `Unknown email type: "${type}". Valid types: ${Object.keys(EMAIL_TYPES).join(", ")}`,
+    };
+  }
+
   const mailDetails = {
     from: process.env.SMTP_ID,
     to: email,
-    subject: "Email Verification!",
-    text: `Your Verification Link Is: ${link}`,
-    html: MAIL_TEMPLATE(link),
+    subject: config.subject,
+    text: `${config.subject}: ${link}`,
+    html: config.template(link),
   };
 
   try {
     const info = await transporter.sendMail(mailDetails);
-    console.log("info: ", info);
     return {
       success: true,
       messageId: info.messageId,
       response: info.response,
     };
   } catch (error) {
-    console.error("Error occurred while sending email:", error.message);
-    if (error.response) {
-      console.error("SMTP Response:", error.response);
-    }
+    console.error(
+      `[SENDMAIL] Failed to send ${type} to ${email}:`,
+      error.message
+    );
+    if (error.response)
+      console.error("[SENDMAIL] SMTP Response:", error.response);
     return {
       success: false,
       error: error.message,
@@ -110,6 +132,7 @@ async function verifySMTPConnection() {
 export {
   verifySMTPConnection,
   isTrustedEmail,
+  // EMAIL_TYPES,
   SENDMAIL,
   createToken,
   isValidToken,

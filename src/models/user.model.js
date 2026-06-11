@@ -1,4 +1,4 @@
-import mongoose, { Schema } from "mongoose";
+import { model, Schema } from "mongoose";
 
 const userSchema = new Schema(
   {
@@ -22,8 +22,16 @@ const userSchema = new Schema(
     },
     name: {
       type: String,
-      //required: true,
-      validate: (value) => value.length > 3,
+      // required: [true, "Name is required"],
+      trim: true,
+      minlength: [3, "Name must be at least 3 characters"],
+      maxlength: [50, "Name cannot exceed 50 characters"],
+      validate: {
+        validator: function (value) {
+          return /^[a-zA-Z\s]+$/.test(value);
+        },
+        message: "Name can only contain letters and spaces",
+      },
     },
     broker: {
       type: String,
@@ -91,4 +99,4 @@ userSchema.index(
   }
 );
 
-export const User = mongoose.model("User", userSchema);
+export const User = model("User", userSchema);

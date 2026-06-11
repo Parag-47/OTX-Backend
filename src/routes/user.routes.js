@@ -11,7 +11,6 @@ import {
   validateUpdateEmail,
   validateUpdatePhone,
   validateForgetPassword,
-  validateResetPasswordQuery,
   validateResetPassword,
   validateEnquiry,
   validateVerifyEmailQuery,
@@ -64,7 +63,6 @@ userRouter.post(
 
 userRouter.post(
   "/resetPassword",
-  validateQuery(validateResetPasswordQuery),
   validateBody(validateResetPassword),
   resetPassword
 );

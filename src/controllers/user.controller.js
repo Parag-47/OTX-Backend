@@ -75,7 +75,7 @@ async function sendVerificationEmail(email, userId) {
 
   const link = `${ORIGIN}/api/v1/user/verifyEmail?token=${token}`;
 
-  const emailResult = await SENDMAIL(email, link);
+  const emailResult = await SENDMAIL("EMAIL_VERIFICATION", email, link);
 
   if (!emailResult.success) {
     console.error("Failed to send verification email:", emailResult.error);
@@ -305,15 +305,15 @@ const forgetPassword = asyncHandler(async (req, res) => {
   if (!newToken) throw new ApiError(500, "Failed to save reset token!");
 
   // Build reset link
-  const ORIGIN =
+  const FRONTEND_ORIGIN =
     process.env.NODE_ENV === "production"
-      ? process.env.PROD_ORIGIN
-      : process.env.DEV_ORIGIN;
+      ? process.env.PROD_FRONTEND_ORIGIN
+      : process.env.DEV_FRONTEND_ORIGIN;
 
-  const resetLink = `${ORIGIN}/api/v1/user/resetPassword?token=${token}`;
+  const resetLink = `${FRONTEND_ORIGIN}/user/resetPassword?token=${token}`;
 
   // Send email
-  const emailResult = await SENDMAIL(email, resetLink);
+  const emailResult = await SENDMAIL("PASSWORD_RESET", email, resetLink);
 
   if (!emailResult.success) {
     console.error("Failed to send reset email:", emailResult.error);
@@ -329,8 +329,7 @@ const forgetPassword = asyncHandler(async (req, res) => {
 });
 
 const resetPassword = asyncHandler(async (req, res) => {
-  const { token } = req.query;
-  const { password, confirmPassword } = req.body;
+  const { token, password, confirmPassword } = req.body;
 
   if (password !== confirmPassword)
     throw new ApiError(400, "Passwords do not match!");

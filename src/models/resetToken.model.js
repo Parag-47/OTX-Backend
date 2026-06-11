@@ -1,6 +1,6 @@
-import mongoose from "mongoose";
+import { model, Schema } from "mongoose";
 
-const resetTokenSchema = new mongoose.Schema({
+const resetTokenSchema = new Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
@@ -25,4 +25,4 @@ const resetTokenSchema = new mongoose.Schema({
 });
 
 // TTL index auto-deletes expired docs
-export const ResetToken = mongoose.model("ResetToken", resetTokenSchema);
+export const ResetToken = model("ResetToken", resetTokenSchema);
