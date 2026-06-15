@@ -306,6 +306,57 @@ const enquirySchema = {
     additionalProperties: "Unknown field(s) provided",
   },
 };
+// ==================== UPDATE PROFILE SCHEMA ====================
+const updateProfileSchema = {
+  type: "object",
+  properties: {
+    gender: {
+      type: "string",
+      enum: ["male", "female"],
+      errorMessage: {
+        enum: "Gender must be either male or female",
+      },
+    },
+    dateOfBirth: {
+      type: "string",
+      format: "date",
+      errorMessage: {
+        format: "Date of birth must be a valid date (YYYY-MM-DD)",
+      },
+    },
+    fathersName: {
+      type: "string",
+      minLength: 3,
+      maxLength: 50,
+      pattern: "^[a-zA-Z\\s]+$",
+      errorMessage: {
+        minLength: "Father's name must be at least 3 characters",
+        maxLength: "Father's name cannot exceed 50 characters",
+        pattern: "Father's name can only contain letters and spaces",
+      },
+    },
+    incomeRange: {
+      type: "string",
+      enum: ["below_1l", "1_5l", "5_10l", "10l+"],
+      errorMessage: {
+        enum: "Income range must be one of: below_1l, 1_5l, 5_10l, 10l+",
+      },
+    },
+    phone: {
+      type: "string",
+      pattern: "^[0-9]{10}$",
+      errorMessage: {
+        pattern: "Phone number must be exactly 10 digits",
+      },
+    },
+  },
+  minProperties: 1,
+  additionalProperties: false,
+  errorMessage: {
+    minProperties: "At least one field is required to update",
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
 
 // ==================== QUERY PARAM SCHEMAS ====================
 const verifyEmailQuerySchema = {
@@ -339,3 +390,4 @@ export const validateForgetPassword = ajv.compile(forgetPasswordSchema);
 export const validateResetPassword = ajv.compile(resetPasswordSchema);
 export const validateEnquiry = ajv.compile(enquirySchema);
 export const validateVerifyEmailQuery = ajv.compile(verifyEmailQuerySchema);
+export const validateUpdateProfile = ajv.compile(updateProfileSchema);

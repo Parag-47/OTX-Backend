@@ -14,6 +14,7 @@ import {
   validateResetPassword,
   validateEnquiry,
   validateVerifyEmailQuery,
+  validateUpdateProfile,
 } from "../validation/jsonSchema.js";
 
 import {
@@ -36,6 +37,8 @@ import {
   updatePhoneNumber,
   enquiry,
   getUserProfile,
+  getFullProfile,
+  updateProfile,
 } from "../controllers/user.controller.js";
 
 const userRouter = Router();
@@ -100,5 +103,18 @@ userRouter.put(
 
 // profile accessible after login
 userRouter.get("/profile", checkAuthentication, getUserProfile);
+
+// ==================== PROFILE ROUTES ====================
+
+// GET full profile (user + extended profile details) — Personal Details screen
+userRouter.get("/profile/full", checkAuthentication, getFullProfile);
+
+// PUT create or update extended profile — Save Details button on Personal Details screen
+userRouter.put(
+  "/profile",
+  checkAuthentication,
+  validateBody(validateUpdateProfile),
+  updateProfile
+);
 
 export default userRouter;

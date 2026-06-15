@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { User } from "../models/user.model.js";
 import { Token } from "../models/token.model.js";
 import { Inquiry } from "../models/inquiry.model.js";
+import { Profile } from "../models/profile.model.js";
 import {
   trustedDomains,
   isTrustedEmail,
@@ -506,6 +507,103 @@ const getUserProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse({ statusCode: 200, success: true, data: user }));
 });
 
+/**
+ * GET /api/v1/user/profile/full
+ * Returns user account info + extended profile (Personal Details page)
+ */
+const getFullProfile = asyncHandler(async (req, res) => {
+  const userId = req.session.userId;
+
+  // Fetch user and their profile in parallel
+  const [user, profile] = await Promise.all([
+    User.findById(userId).select("-__v -password"),
+    Profile.findOne({ userId }).select("-__v"),
+  ]);
+
+  if (!user) throw new ApiError(404, "User not found!");
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      true,
+      "Profile fetched successfully",
+      {
+        // Account-level fields
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        broker: user.broker,
+        traderType: user.traderType,
+        source: user.source,
+        verified_email: user.verified_email,
+        verified_phone: user.verified_phone,
+        isActive: user.isActive,
+        isBanned: user.isBanned,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        // Extended profile fields (null if not yet filled)
+        profile: profile
+          ? {
+              gender: profile.gender,
+              dateOfBirth: profile.dateOfBirth,
+              fathersName: profile.fathersName,
+              incomeRange: profile.incomeRange,
+              phone: profile.phone,
+            }
+          : null,
+      }
+    )
+  );
+});
+
+/**
+ * PUT /api/v1/user/profile
+ * Create or update extended profile (Personal Details screen — Save Details button)
+ * Uses upsert: creates a profile doc if none exists, updates if it does.
+ */
+const updateProfile = asyncHandler(async (req, res) => {
+  const userId = req.session.userId;
+
+  // Build only the fields that were actually sent
+  const allowedFields = [
+    "gender",
+    "dateOfBirth",
+    "fathersName",
+    "incomeRange",
+    "phone",
+  ];
+
+  const update = {};
+  for (const key of allowedFields) {
+    if (
+      req.body[key] !== undefined &&
+      req.body[key] !== null &&
+      req.body[key] !== ""
+    ) {
+      update[key] = req.body[key];
+    }
+  }
+
+  if (Object.keys(update).length === 0) {
+    throw new ApiError(400, "No valid fields provided to update!");
+  }
+
+  // Upsert: create if not exists, update if exists
+  const profile = await Profile.findOneAndUpdate(
+    { userId },
+    { $set: update },
+    { new: true, upsert: true, runValidators: true, select: "-__v" }
+  );
+
+  if (!profile) throw new ApiError(500, "Failed to update profile!");
+
+  return res.status(200).json(
+    new ApiResponse(200, true, "Profile updated successfully!", profile)
+  );
+});
+
 export {
   googleAuth,
   googleAuthCallback,
@@ -520,4 +618,6 @@ export {
   updatePhoneNumber,
   enquiry,
   getUserProfile,
+  getFullProfile,
+  updateProfile,
 };
