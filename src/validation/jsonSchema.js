@@ -358,6 +358,42 @@ const updateProfileSchema = {
   },
 };
 
+// ==================== UPDATE KYC SCHEMA ====================
+const updateKycSchema = {
+  type: "object",
+  properties: {
+    panNumber: {
+      type: "string",
+      pattern: "^[A-Z]{5}[0-9]{4}[A-Z]{1}$",
+      errorMessage: {
+        pattern: "PAN Number must be in the format XXXXX1234X",
+      },
+    },
+    aadhaarNumber: {
+      type: "string",
+      pattern: "^\\d{12}$",
+      errorMessage: {
+        pattern: "Aadhaar Number must be exactly 12 digits",
+      },
+    },
+    address: {
+      type: "string",
+      minLength: 5,
+      maxLength: 500,
+      errorMessage: {
+        minLength: "Address must be at least 5 characters long",
+        maxLength: "Address cannot exceed 500 characters",
+      },
+    },
+  },
+  minProperties: 1,
+  additionalProperties: false,
+  errorMessage: {
+    minProperties: "At least one field is required to update",
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
+
 // ==================== QUERY PARAM SCHEMAS ====================
 const verifyEmailQuerySchema = {
   type: "object",
@@ -391,3 +427,4 @@ export const validateResetPassword = ajv.compile(resetPasswordSchema);
 export const validateEnquiry = ajv.compile(enquirySchema);
 export const validateVerifyEmailQuery = ajv.compile(verifyEmailQuerySchema);
 export const validateUpdateProfile = ajv.compile(updateProfileSchema);
+export const validateUpdateKyc = ajv.compile(updateKycSchema);

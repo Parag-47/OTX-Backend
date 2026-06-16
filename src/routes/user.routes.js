@@ -15,6 +15,7 @@ import {
   validateEnquiry,
   validateVerifyEmailQuery,
   validateUpdateProfile,
+  validateUpdateKyc,
 } from "../validation/jsonSchema.js";
 
 import {
@@ -39,6 +40,8 @@ import {
   getUserProfile,
   getFullProfile,
   updateProfile,
+  getKycDetails,
+  updateKycDetails,
 } from "../controllers/user.controller.js";
 
 const userRouter = Router();
@@ -115,6 +118,17 @@ userRouter.put(
   checkAuthentication,
   validateBody(validateUpdateProfile),
   updateProfile
+);
+
+// ==================== KYC ROUTES ====================
+
+userRouter.get("/kyc", checkAuthentication, getKycDetails);
+
+userRouter.put(
+  "/kyc",
+  checkAuthentication,
+  validateBody(validateUpdateKyc),
+  updateKycDetails
 );
 
 export default userRouter;

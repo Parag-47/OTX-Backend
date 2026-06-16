@@ -4,6 +4,8 @@ import { User } from "../models/user.model.js";
 import { Token } from "../models/token.model.js";
 import { Inquiry } from "../models/inquiry.model.js";
 import { Profile } from "../models/profile.model.js";
+import { Kyc } from "../models/kyc.model.js";
+import { encrypt, decrypt } from "../utils/encryption.js";
 import {
   trustedDomains,
   isTrustedEmail,
@@ -604,6 +606,74 @@ const updateProfile = asyncHandler(async (req, res) => {
   );
 });
 
+/**
+ * GET /api/v1/user/kyc
+ * Fetch KYC details, decrypting PAN and Aadhaar
+ */
+const getKycDetails = asyncHandler(async (req, res) => {
+  const userId = req.session.userId;
+
+  const kyc = await Kyc.findOne({ userId }).select("-__v").lean();
+
+  if (!kyc) {
+    return res.status(200).json(
+      new ApiResponse(200, true, "No KYC details found", null)
+    );
+  }
+
+  // Decrypt sensitive fields
+  if (kyc.panNumber) kyc.panNumber = decrypt(kyc.panNumber);
+  if (kyc.aadhaarNumber) kyc.aadhaarNumber = decrypt(kyc.aadhaarNumber);
+
+  return res.status(200).json(
+    new ApiResponse(200, true, "KYC fetched successfully", kyc)
+  );
+});
+
+/**
+ * PUT /api/v1/user/kyc
+ * Update KYC details, encrypting PAN and Aadhaar before saving
+ */
+const updateKycDetails = asyncHandler(async (req, res) => {
+  const userId = req.session.userId;
+  const { panNumber, aadhaarNumber, address } = req.body;
+
+  const update = {};
+
+  if (address !== undefined) {
+    update.address = address;
+  }
+
+  // Encrypt sensitive fields before saving
+  if (panNumber) {
+    update.panNumber = encrypt(panNumber);
+  }
+
+  if (aadhaarNumber) {
+    update.aadhaarNumber = encrypt(aadhaarNumber);
+  }
+
+  if (Object.keys(update).length === 0) {
+    throw new ApiError(400, "No valid fields provided to update!");
+  }
+
+  const kyc = await Kyc.findOneAndUpdate(
+    { userId },
+    { $set: update },
+    { new: true, upsert: true, runValidators: true, select: "-__v" }
+  ).lean();
+
+  if (!kyc) throw new ApiError(500, "Failed to update KYC details!");
+
+  // Return the decrypted values to the frontend
+  if (kyc.panNumber) kyc.panNumber = decrypt(kyc.panNumber);
+  if (kyc.aadhaarNumber) kyc.aadhaarNumber = decrypt(kyc.aadhaarNumber);
+
+  return res.status(200).json(
+    new ApiResponse(200, true, "KYC details updated successfully!", kyc)
+  );
+});
+
 export {
   googleAuth,
   googleAuthCallback,
@@ -620,4 +690,6 @@ export {
   getUserProfile,
   getFullProfile,
   updateProfile,
+  getKycDetails,
+  updateKycDetails,
 };
