@@ -2,8 +2,8 @@ import crypto from "crypto";
 
 // Ensure ENCRYPTION_KEY is available and exactly 32 bytes
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
-  console.error("CRITICAL: ENCRYPTION_KEY must be exactly 32 characters long.");
+if (!ENCRYPTION_KEY || Buffer.byteLength(ENCRYPTION_KEY, "utf8") !== 32) {
+  throw new Error("CRITICAL STARTUP FAILURE: ENCRYPTION_KEY must be exactly 32 bytes long.");
 }
 
 const ALGORITHM = "aes-256-gcm";

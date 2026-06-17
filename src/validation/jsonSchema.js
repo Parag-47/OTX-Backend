@@ -342,13 +342,6 @@ const updateProfileSchema = {
         enum: "Income range must be one of: below_1l, 1_5l, 5_10l, 10l+",
       },
     },
-    phone: {
-      type: "string",
-      pattern: "^[0-9]{10}$",
-      errorMessage: {
-        pattern: "Phone number must be exactly 10 digits",
-      },
-    },
   },
   minProperties: 1,
   additionalProperties: false,

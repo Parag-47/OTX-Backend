@@ -541,10 +541,6 @@ const getFullProfile = asyncHandler(async (req, res) => {
         source: user.source,
         verified_email: user.verified_email,
         verified_phone: user.verified_phone,
-        isActive: user.isActive,
-        isBanned: user.isBanned,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
         // Extended profile fields (null if not yet filled)
         profile: profile
           ? {
@@ -552,7 +548,6 @@ const getFullProfile = asyncHandler(async (req, res) => {
               dateOfBirth: profile.dateOfBirth,
               fathersName: profile.fathersName,
               incomeRange: profile.incomeRange,
-              phone: profile.phone,
             }
           : null,
       }
@@ -568,29 +563,8 @@ const getFullProfile = asyncHandler(async (req, res) => {
 const updateProfile = asyncHandler(async (req, res) => {
   const userId = req.session.userId;
 
-  // Build only the fields that were actually sent
-  const allowedFields = [
-    "gender",
-    "dateOfBirth",
-    "fathersName",
-    "incomeRange",
-    "phone",
-  ];
-
-  const update = {};
-  for (const key of allowedFields) {
-    if (
-      req.body[key] !== undefined &&
-      req.body[key] !== null &&
-      req.body[key] !== ""
-    ) {
-      update[key] = req.body[key];
-    }
-  }
-
-  if (Object.keys(update).length === 0) {
-    throw new ApiError(400, "No valid fields provided to update!");
-  }
+  // AJV middleware already validated req.body, so we can use it directly
+  const update = req.body;
 
   // Upsert: create if not exists, update if exists
   const profile = await Profile.findOneAndUpdate(
@@ -613,7 +587,7 @@ const updateProfile = asyncHandler(async (req, res) => {
 const getKycDetails = asyncHandler(async (req, res) => {
   const userId = req.session.userId;
 
-  const kyc = await Kyc.findOne({ userId }).select("-__v").lean();
+  const kyc = await Kyc.findOne({ userId }).select("-__v -createdAt -updatedAt").lean();
 
   if (!kyc) {
     return res.status(200).json(
@@ -660,7 +634,7 @@ const updateKycDetails = asyncHandler(async (req, res) => {
   const kyc = await Kyc.findOneAndUpdate(
     { userId },
     { $set: update },
-    { new: true, upsert: true, runValidators: true, select: "-__v" }
+    { new: true, upsert: true, runValidators: true, select: "-__v -createdAt -updatedAt" }
   ).lean();
 
   if (!kyc) throw new ApiError(500, "Failed to update KYC details!");

@@ -13,7 +13,6 @@ const profileSchema = new Schema(
     },
     dateOfBirth: {
       type: Date,
-      required: [true, "Date of birth is required!"],
     },
     fathersName: {
       type: String,
@@ -30,10 +29,6 @@ const profileSchema = new Schema(
     incomeRange: {
       type: String,
       enum: ["below_1l", "1_5l", "5_10l", "10l+"],
-    },
-    phone: {
-      type: String,
-      trim: true,
     },
   },
   { timestamps: true }

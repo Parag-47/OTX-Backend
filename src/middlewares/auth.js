@@ -49,7 +49,7 @@ const checkAuthentication = asyncHandler(async (req, res, next) => {
   if (user.isBanned) {
     throw new ApiError(403, "Your account has been banned");
   }
-
+// email verified and phone no verified
   req.user = user;
 
   next();
