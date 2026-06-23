@@ -306,6 +306,86 @@ const enquirySchema = {
     additionalProperties: "Unknown field(s) provided",
   },
 };
+// ==================== UPDATE PROFILE SCHEMA ====================
+const updateProfileSchema = {
+  type: "object",
+  properties: {
+    gender: {
+      type: "string",
+      enum: ["male", "female"],
+      errorMessage: {
+        enum: "Gender must be either male or female",
+      },
+    },
+    dateOfBirth: {
+      type: "string",
+      format: "date",
+      errorMessage: {
+        format: "Date of birth must be a valid date (YYYY-MM-DD)",
+      },
+    },
+    fathersName: {
+      type: "string",
+      minLength: 3,
+      maxLength: 50,
+      pattern: "^[a-zA-Z\\s]+$",
+      errorMessage: {
+        minLength: "Father's name must be at least 3 characters",
+        maxLength: "Father's name cannot exceed 50 characters",
+        pattern: "Father's name can only contain letters and spaces",
+      },
+    },
+    incomeRange: {
+      type: "string",
+      enum: ["below_1l", "1_5l", "5_10l", "10l+"],
+      errorMessage: {
+        enum: "Income range must be one of: below_1l, 1_5l, 5_10l, 10l+",
+      },
+    },
+  },
+  minProperties: 1,
+  additionalProperties: false,
+  errorMessage: {
+    minProperties: "At least one field is required to update",
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
+
+// ==================== UPDATE KYC SCHEMA ====================
+const updateKycSchema = {
+  type: "object",
+  properties: {
+    panNumber: {
+      type: "string",
+      pattern: "^[A-Z]{5}[0-9]{4}[A-Z]{1}$",
+      errorMessage: {
+        pattern: "PAN Number must be in the format XXXXX1234X",
+      },
+    },
+    aadhaarNumber: {
+      type: "string",
+      pattern: "^\\d{12}$",
+      errorMessage: {
+        pattern: "Aadhaar Number must be exactly 12 digits",
+      },
+    },
+    address: {
+      type: "string",
+      minLength: 5,
+      maxLength: 500,
+      errorMessage: {
+        minLength: "Address must be at least 5 characters long",
+        maxLength: "Address cannot exceed 500 characters",
+      },
+    },
+  },
+  minProperties: 1,
+  additionalProperties: false,
+  errorMessage: {
+    minProperties: "At least one field is required to update",
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
 
 // ==================== QUERY PARAM SCHEMAS ====================
 const verifyEmailQuerySchema = {
@@ -339,3 +419,5 @@ export const validateForgetPassword = ajv.compile(forgetPasswordSchema);
 export const validateResetPassword = ajv.compile(resetPasswordSchema);
 export const validateEnquiry = ajv.compile(enquirySchema);
 export const validateVerifyEmailQuery = ajv.compile(verifyEmailQuerySchema);
+export const validateUpdateProfile = ajv.compile(updateProfileSchema);
+export const validateUpdateKyc = ajv.compile(updateKycSchema);

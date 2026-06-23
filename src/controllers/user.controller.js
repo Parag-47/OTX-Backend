@@ -3,6 +3,9 @@ import crypto from "crypto";
 import { User } from "../models/user.model.js";
 import { Token } from "../models/token.model.js";
 import { Inquiry } from "../models/inquiry.model.js";
+import { Profile } from "../models/profile.model.js";
+import { Kyc } from "../models/kyc.model.js";
+import { encrypt, decrypt } from "../utils/encryption.js";
 import {
   trustedDomains,
   isTrustedEmail,
@@ -506,6 +509,145 @@ const getUserProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse({ statusCode: 200, success: true, data: user }));
 });
 
+/**
+ * GET /api/v1/user/profile/full
+ * Returns user account info + extended profile (Personal Details page)
+ */
+const getFullProfile = asyncHandler(async (req, res) => {
+  const userId = req.session.userId;
+
+  // Fetch user and their profile in parallel
+  const [user, profile] = await Promise.all([
+    User.findById(userId).select("-__v -password"),
+    Profile.findOne({ userId }).select("-__v"),
+  ]);
+
+  if (!user) throw new ApiError(404, "User not found!");
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      true,
+      "Profile fetched successfully",
+      {
+        // Account-level fields
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        broker: user.broker,
+        traderType: user.traderType,
+        source: user.source,
+        verified_email: user.verified_email,
+        verified_phone: user.verified_phone,
+        // Extended profile fields (null if not yet filled)
+        profile: profile
+          ? {
+              gender: profile.gender,
+              dateOfBirth: profile.dateOfBirth,
+              fathersName: profile.fathersName,
+              incomeRange: profile.incomeRange,
+            }
+          : null,
+      }
+    )
+  );
+});
+
+/**
+ * PUT /api/v1/user/profile
+ * Create or update extended profile (Personal Details screen — Save Details button)
+ * Uses upsert: creates a profile doc if none exists, updates if it does.
+ */
+const updateProfile = asyncHandler(async (req, res) => {
+  const userId = req.session.userId;
+
+  // AJV middleware already validated req.body, so we can use it directly
+  const update = req.body;
+
+  // Upsert: create if not exists, update if exists
+  const profile = await Profile.findOneAndUpdate(
+    { userId },
+    { $set: update },
+    { new: true, upsert: true, runValidators: true, select: "-__v" }
+  );
+
+  if (!profile) throw new ApiError(500, "Failed to update profile!");
+
+  return res.status(200).json(
+    new ApiResponse(200, true, "Profile updated successfully!", profile)
+  );
+});
+
+/**
+ * GET /api/v1/user/kyc
+ * Fetch KYC details, decrypting PAN and Aadhaar
+ */
+const getKycDetails = asyncHandler(async (req, res) => {
+  const userId = req.session.userId;
+
+  const kyc = await Kyc.findOne({ userId }).select("-__v -createdAt -updatedAt").lean();
+
+  if (!kyc) {
+    return res.status(200).json(
+      new ApiResponse(200, true, "No KYC details found", null)
+    );
+  }
+
+  // Decrypt sensitive fields
+  if (kyc.panNumber) kyc.panNumber = decrypt(kyc.panNumber);
+  if (kyc.aadhaarNumber) kyc.aadhaarNumber = decrypt(kyc.aadhaarNumber);
+
+  return res.status(200).json(
+    new ApiResponse(200, true, "KYC fetched successfully", kyc)
+  );
+});
+
+/**
+ * PUT /api/v1/user/kyc
+ * Update KYC details, encrypting PAN and Aadhaar before saving
+ */
+const updateKycDetails = asyncHandler(async (req, res) => {
+  const userId = req.session.userId;
+  const { panNumber, aadhaarNumber, address } = req.body;
+
+  const update = {};
+
+  if (address !== undefined) {
+    update.address = address;
+  }
+
+  // Encrypt sensitive fields before saving
+  if (panNumber) {
+    update.panNumber = encrypt(panNumber);
+  }
+
+  if (aadhaarNumber) {
+    update.aadhaarNumber = encrypt(aadhaarNumber);
+  }
+
+  if (Object.keys(update).length === 0) {
+    throw new ApiError(400, "No valid fields provided to update!");
+  }
+
+  const kyc = await Kyc.findOneAndUpdate(
+    { userId },
+    { $set: update },
+    { new: true, upsert: true, runValidators: true, select: "-__v -createdAt -updatedAt" }
+  ).lean();
+
+  if (!kyc) throw new ApiError(500, "Failed to update KYC details!");
+
+  // Return the decrypted values to the frontend
+  if (kyc.panNumber) kyc.panNumber = decrypt(kyc.panNumber);
+  if (kyc.aadhaarNumber) kyc.aadhaarNumber = decrypt(kyc.aadhaarNumber);
+
+  return res.status(200).json(
+    new ApiResponse(200, true, "KYC details updated successfully!", kyc)
+  );
+});
+
 export {
   googleAuth,
   googleAuthCallback,
@@ -520,4 +662,8 @@ export {
   updatePhoneNumber,
   enquiry,
   getUserProfile,
+  getFullProfile,
+  updateProfile,
+  getKycDetails,
+  updateKycDetails,
 };

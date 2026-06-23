@@ -13,11 +13,9 @@ const profileSchema = new Schema(
     },
     dateOfBirth: {
       type: Date,
-      required: true,
     },
     fathersName: {
       type: String,
-      required: [true, "Father's Name is required"],
       trim: true,
       minlength: [3, "Name must be at least 3 characters"],
       maxlength: [50, "Name cannot exceed 50 characters"],
@@ -29,12 +27,11 @@ const profileSchema = new Schema(
       },
     },
     incomeRange: {
-      type: "String",
+      type: String,
       enum: ["below_1l", "1_5l", "5_10l", "10l+"],
-      require: true,
     },
   },
-  { timeStamps: true }
+  { timestamps: true }
 );
 
 export const Profile = model("Profile", profileSchema);
