@@ -2,36 +2,6 @@ import ApiError from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
-// async function checkAuthentication (req, res, next) {
-//   if (!req.session.userId) return res.redirect("/oauth/Not Authenticated!");
-//   return next();
-// }
-
-// async function checkAuthentication(req, res, next) {
-//   try {
-//     // Check if session exists AND user exists inside session
-//     if (!req?.session || !req.session?.userId) {
-//       throw new ApiError(401, "Not authenticated");
-//     }
-
-//     const user = await User.findById(req.session.userId).select(
-//       "verified_email verified_phone"
-//     );
-
-//     if (
-//       !user ||
-//       (user.verified_email === false && user.verified_phone === false)
-//     )
-//       throw new ApiError(401, "User doesn't exists or is not verified");
-
-//     // Attach user to req for convenience (downstream access)
-//     req.userId = req.session.userId;
-
-//     next();
-//   } catch (err) {
-//     next(err);
-//   }
-// }
 
 const checkAuthentication = asyncHandler(async (req, res, next) => {
   if (!req.session?.userId) {
@@ -39,7 +9,7 @@ const checkAuthentication = asyncHandler(async (req, res, next) => {
   }
 
   const user = await User.findById(req.session.userId).select(
-    "_id role verified_email verified_phone isActive isBanned"
+    "_id role verified_email verified_phone isActive isBanned accountStatus"
   );
 
   if (!user) {
@@ -49,9 +19,40 @@ const checkAuthentication = asyncHandler(async (req, res, next) => {
   if (user.isBanned) {
     throw new ApiError(403, "Your account has been banned");
   }
-// email verified and phone no verified
-  req.user = user;
 
+  // ALLOW specific routes for closed accounts (30-day grace period for downloading data)
+  const allowedClosedRoutes = ["/export-data", "/logout"];
+  const isAllowedRoute = allowedClosedRoutes.some(route => req.path.includes(route));
+
+  if (user.accountStatus === "Closed" && !isAllowedRoute) {
+    throw new ApiError(
+      403,
+      "This account has been permanently closed. Contact support@onetimex.in",
+      "ACCOUNT_CLOSED"
+    );
+  }
+
+  req.user = user;
+  next();
+});
+
+const requireActiveAccount = asyncHandler(async (req, res, next) => {
+  if (req.user.accountStatus === "OnHold") {
+    throw new ApiError(
+      403,
+      "Your account is under closure review. Financial actions are disabled.",
+      "ACCOUNT_ON_HOLD"
+    );
+  }
+  
+  if (req.user.accountStatus === "Closed") {
+    throw new ApiError(
+      403,
+      "This account has been closed.",
+      "ACCOUNT_CLOSED"
+    );
+  }
+  
   next();
 });
 
@@ -72,4 +73,4 @@ const requireRole = (...roles) =>
     next();
   });
 
-export { checkAuthentication, requireVerified, requireRole };
+export { checkAuthentication, requireVerified, requireRole, requireActiveAccount };

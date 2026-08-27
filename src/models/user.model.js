@@ -9,12 +9,12 @@ const userSchema = new Schema(
       // index: true,
       //require: true,
     },
-    password: {
+    pin: {
       type: String,
-      //require: [true, "Password is Required!"],
+      select: false,
     },
     phone: {
-      type: Number,
+      type: String,
       default: null,
       // unique: true,
       // index: true,
@@ -79,6 +79,11 @@ const userSchema = new Schema(
     },
     banReason: String,
     bannedAt: Date,
+    accountStatus: {
+      type: String,
+      enum: ["Active", "OnHold", "Closed"],
+      default: "Active",
+    },
   },
   { timestamps: true }
 );

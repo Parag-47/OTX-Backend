@@ -30,6 +30,10 @@ const profileSchema = new Schema(
       type: String,
       enum: ["below_1l", "1_5l", "5_10l", "10l+"],
     },
+    investment: {
+      type: Number,
+      min: 0,
+    }
   },
   { timestamps: true }
 );

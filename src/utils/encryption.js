@@ -1,9 +1,9 @@
 import crypto from "crypto";
 
-// Ensure ENCRYPTION_KEY is available and exactly 32 bytes
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-if (!ENCRYPTION_KEY || Buffer.byteLength(ENCRYPTION_KEY, "utf8") !== 32) {
-  throw new Error("CRITICAL STARTUP FAILURE: ENCRYPTION_KEY must be exactly 32 bytes long.");
+// Ensure AES_SECRET_KEY is available and exactly 32 bytes
+const AES_SECRET_KEY = process.env.AES_SECRET_KEY;
+if (!AES_SECRET_KEY || Buffer.byteLength(AES_SECRET_KEY, "utf8") !== 32) {
+  throw new Error("CRITICAL STARTUP FAILURE: AES_SECRET_KEY must be exactly 32 bytes long.");
 }
 
 const ALGORITHM = "aes-256-gcm";
@@ -20,7 +20,7 @@ export function encrypt(text) {
   const iv = crypto.randomBytes(16);
   
   // Create cipher
-  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(AES_SECRET_KEY), iv);
   
   // Encrypt the text
   let encrypted = cipher.update(text, "utf8", "hex");
@@ -49,7 +49,7 @@ export function decrypt(hash) {
     const authTag = Buffer.from(parts[1], "hex");
     const encryptedText = parts[2];
     
-    const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
+    const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(AES_SECRET_KEY), Buffer.from(iv, 'hex'));
     decipher.setAuthTag(authTag);
     
     let decrypted = decipher.update(encryptedText, "hex", "utf8");

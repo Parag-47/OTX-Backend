@@ -5,33 +5,52 @@ import {
 } from "../middlewares/validateDto.middleware.js";
 
 import {
+  otpLimiter,
+  authLimiter,
+  withdrawalLimiter,
+  pinChangeLimiter,
+} from "../middlewares/rateLimiter.js";
+
+import {
   validateSignup,
   validateLogin,
+  validateLoginOtp,
+  validateSendOtp,
   validateUpdateAccountInfo,
   validateUpdateEmail,
   validateUpdatePhone,
-  validateForgetPassword,
+  validateForgetPin,
   validateResetPassword,
   validateEnquiry,
   validateVerifyEmailQuery,
   validateUpdateProfile,
   validateUpdateKyc,
+  validateResetPin,
+  validateUpdateDemat,
+  validateUpdateBank,
+  validateCreateOrder,
+  validateSendVerificationOtp,
+  validateVerifyPhoneOtp,
 } from "../validation/jsonSchema.js";
 
 import {
   checkAuthentication,
   requireVerified,
   requireRole,
+  requireActiveAccount,
 } from "../middlewares/auth.js";
 
 import {
   googleAuth,
   googleAuthCallback,
+  sendOtp,
   signup,
   verifyEmail,
   login,
+  loginOtp,
   logout,
-  forgetPassword,
+  forgetPin,
+  resetPin,
   resetPassword,
   updateAccountInfo,
   updateEmail,
@@ -42,16 +61,42 @@ import {
   updateProfile,
   getKycDetails,
   updateKycDetails,
+  getDematDetails,
+  updateDematDetails,
+  getBankDetails,
+  updateBankDetails,
+  createOrder,
+  getUserOrders,
+  getPortfolioSummary,
+  getOrderDetails,
+  getWalletBalance,
+  initiateDeposit,
+  handleCashfreeWebhook,
+  verifyPaymentAndCredit,
+  getWalletTransactions,
+  getPublicStocks,
+  requestWithdrawal,
+  getUserWithdrawals,
+  getWithdrawalDetails,
+  exportUserData,
+  requestAccountClosure,
+  sendVerificationOtp,
+  verifyPhoneOtp,
 } from "../controllers/user.controller.js";
 
 const userRouter = Router();
+
+// ==================== PUBLIC ROUTES ====================
+
+userRouter.get("/stocks", getPublicStocks); // Allows users to browse without login
 
 // ==================== AUTH ROUTES ====================
 userRouter.get("/auth/google", googleAuth);
 userRouter.get("/auth/google/callback", googleAuthCallback);
 
 // ==================== PUBLIC ROUTES ====================
-userRouter.post("/signup", validateBody(validateSignup), signup);
+userRouter.post("/send-otp", otpLimiter, validateBody(validateSendOtp), sendOtp);
+userRouter.post("/signup", authLimiter, validateBody(validateSignup), signup);
 
 userRouter.get(
   "/verifyEmail",
@@ -59,26 +104,46 @@ userRouter.get(
   verifyEmail
 );
 
-userRouter.post("/login", validateBody(validateLogin), login);
+userRouter.post("/login", authLimiter, validateBody(validateLogin), login);
+userRouter.post("/login-otp", authLimiter, validateBody(validateLoginOtp), loginOtp);
 
 userRouter.post(
-  "/forgetPassword",
-  validateBody(validateForgetPassword),
-  forgetPassword
+  "/forgetPin",
+  authLimiter,
+  validateBody(validateForgetPin),
+  forgetPin
 );
 
 userRouter.post(
   "/resetPassword",
+  authLimiter,
   validateBody(validateResetPassword),
   resetPassword
 );
 
 userRouter.post("/enquiry", validateBody(validateEnquiry), enquiry);
 
+
 // ==================== PROTECTED ROUTES ====================
 
 // logout only needs authentication
 userRouter.get("/logout", checkAuthentication, logout);
+
+// phone verification routes for logged in users
+userRouter.post(
+  "/send-verification-otp",
+  checkAuthentication,
+  otpLimiter,
+  validateBody(validateSendVerificationOtp),
+  sendVerificationOtp
+);
+
+userRouter.post(
+  "/verify-phone-otp",
+  checkAuthentication,
+  validateBody(validateVerifyPhoneOtp),
+  verifyPhoneOtp
+);
 
 // verified account required
 userRouter.put(
@@ -104,6 +169,15 @@ userRouter.put(
   updatePhoneNumber
 );
 
+userRouter.post(
+  "/reset-pin",
+  pinChangeLimiter,
+  checkAuthentication,
+  requireVerified,
+  validateBody(validateResetPin),
+  resetPin
+);
+
 // profile accessible after login
 userRouter.get("/profile", checkAuthentication, getUserProfile);
 
@@ -120,9 +194,36 @@ userRouter.put(
   updateProfile
 );
 
+// POST request account closure
+userRouter.post("/profile/request-closure", checkAuthentication, requestAccountClosure);
+
+// GET export user data (allowed for Closed accounts)
+userRouter.get("/export-data", checkAuthentication, exportUserData);
+
 // ==================== KYC ROUTES ====================
 
 userRouter.get("/kyc", checkAuthentication, getKycDetails);
+
+userRouter.post(
+  "/withdraw",
+  withdrawalLimiter,
+  checkAuthentication,
+  requireVerified,
+  requireActiveAccount,
+  requestWithdrawal
+);
+
+userRouter.get(
+  "/withdrawals",
+  checkAuthentication,
+  getUserWithdrawals
+);
+
+userRouter.get(
+  "/withdrawals/:id",
+  checkAuthentication,
+  getWithdrawalDetails
+);
 
 userRouter.put(
   "/kyc",
@@ -130,5 +231,49 @@ userRouter.put(
   validateBody(validateUpdateKyc),
   updateKycDetails
 );
+
+// ==================== DEMAT ROUTES ====================
+
+userRouter.get("/demat", checkAuthentication, getDematDetails);
+
+userRouter.put(
+  "/demat",
+  checkAuthentication,
+  validateBody(validateUpdateDemat),
+  updateDematDetails
+);
+
+// ==================== BANK ROUTES ====================
+
+userRouter.get("/bank", checkAuthentication, getBankDetails);
+
+userRouter.put(
+  "/bank",
+  checkAuthentication,
+  validateBody(validateUpdateBank),
+  updateBankDetails
+);
+
+// ==================== ORDER & PORTFOLIO ROUTES ====================
+
+userRouter.post(
+  "/orders",
+  checkAuthentication,
+  requireActiveAccount,
+  validateBody(validateCreateOrder),
+  createOrder
+);
+
+userRouter.get("/orders", checkAuthentication, getUserOrders);
+userRouter.get("/portfolio/summary", checkAuthentication, getPortfolioSummary);
+userRouter.get("/orders/:id", checkAuthentication, getOrderDetails);
+
+// ==================== WALLET ROUTES ====================
+
+userRouter.get("/wallet/balance", checkAuthentication, getWalletBalance);
+userRouter.get("/wallet/transactions", checkAuthentication, getWalletTransactions);
+userRouter.post("/wallet/deposit/initiate", checkAuthentication, requireActiveAccount, initiateDeposit);
+userRouter.post("/wallet/verify-payment", checkAuthentication, verifyPaymentAndCredit); // Direct Cashfree API verify (webhook fallback)
+userRouter.post("/wallet/webhook", handleCashfreeWebhook); // cashfree webhook is public (verifies hmac internally)
 
 export default userRouter;
