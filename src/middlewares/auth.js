@@ -22,7 +22,7 @@ const checkAuthentication = asyncHandler(async (req, res, next) => {
 
   // ALLOW specific routes for closed accounts (30-day grace period for downloading data)
   const allowedClosedRoutes = ["/export-data", "/logout"];
-  const isAllowedRoute = allowedClosedRoutes.some(route => req.path.includes(route));
+  const isAllowedRoute = allowedClosedRoutes.includes(req.path);
 
   if (user.accountStatus === "Closed" && !isAllowedRoute) {
     throw new ApiError(

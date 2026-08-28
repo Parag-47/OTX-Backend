@@ -138,18 +138,24 @@ async function googleAuthCallback(req, res) {
       if (existingUser.role === "admin") {
         throw new ApiError(403, "Admins must login using phone and PIN only.");
       }
-      req.session.regenerate((err) => {
-        if (err) throw new ApiError(500, "Session regeneration failed");
-
-        req.session.userId = existingUser._id;
-        req.session.save(() => {
-          res.redirect(
-            `${frontendOrigin}/?profilePic=${googleUser.picture}&email=${googleUser.email}&name=${googleUser.name}`
-          );
+      await new Promise((resolve, reject) => {
+        req.session.regenerate((err) => {
+          if (err) return reject(new ApiError(500, "Session regeneration failed"));
+          resolve();
         });
       });
 
-      return;
+      req.session.userId = existingUser._id;
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) return reject(new ApiError(500, "Session save failed"));
+          resolve();
+        });
+      });
+
+      return res.redirect(
+        `${frontendOrigin}/?profilePic=${googleUser.picture}&email=${googleUser.email}&name=${googleUser.name}`
+      );
     }
 
     // Create new user
@@ -161,19 +167,25 @@ async function googleAuthCallback(req, res) {
 
     if (!newUser) throw new ApiError(500, "Failed To Create User!");
 
-    req.session.regenerate((err) => {
-      if (err) throw new ApiError(500, "Session regeneration failed");
-
-      req.session.userId = newUser._id;
-
-      req.session.save((err) => {
-        if (err) throw new ApiError(500, "Session save failed");
-
-        res.redirect(
-          `${frontendOrigin}/?profilePic=${googleUser.picture}&email=${googleUser.email}&name=${googleUser.name}`
-        );
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => {
+        if (err) return reject(new ApiError(500, "Session regeneration failed"));
+        resolve();
       });
     });
+
+    req.session.userId = newUser._id;
+
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) return reject(new ApiError(500, "Session save failed"));
+        resolve();
+      });
+    });
+
+    return res.redirect(
+      `${frontendOrigin}/?profilePic=${googleUser.picture}&email=${googleUser.email}&name=${googleUser.name}`
+    );
   } catch (error) {
     console.log("Error In Callback: ", error);
     res.redirect(`/oauth/Failed To Authenticate!`);
@@ -260,19 +272,24 @@ const signup = asyncHandler(async (req, res) => {
     await valkey.del(`OTX:${oldSessionId}`);
   }
 
-  req.session.regenerate(async (err) => {
-    if (err) throw new ApiError(500, "Session regeneration failed");
-
-    req.session.userId = user._id;
-    await valkey.set(`user_session:${user._id}`, req.sessionID);
-
-
-    req.session.save((err) => {
-      if (err) throw new ApiError(500, "Session save failed");
-
-      res.status(200).json(new ApiResponse(200, true, "User registered successfully!", sanitizeUser(user)));
+  await new Promise((resolve, reject) => {
+    req.session.regenerate((err) => {
+      if (err) return reject(new ApiError(500, "Session regeneration failed"));
+      resolve();
     });
   });
+
+  req.session.userId = user._id;
+  await valkey.set(`user_session:${user._id}`, req.sessionID);
+
+  await new Promise((resolve, reject) => {
+    req.session.save((err) => {
+      if (err) return reject(new ApiError(500, "Session save failed"));
+      resolve();
+    });
+  });
+
+  return res.status(200).json(new ApiResponse(200, true, "User registered successfully!", sanitizeUser(user)));
 });
 
 const verifyEmail = asyncHandler(async (req, res) => {
@@ -322,23 +339,28 @@ const login = asyncHandler(async (req, res) => {
     await valkey.del(`OTX:${oldSessionId}`);
   }
 
-  req.session.regenerate(async (err) => {
-    if (err) throw new ApiError(500, "Session regeneration failed");
-
-    req.session.userId = user._id;
-    await valkey.set(`user_session:${user._id}`, req.sessionID);
-
-
-    if (user.role === "admin") {
-      await logAdminAction(req, user._id, "LOGIN", "Admin logged in via PIN");
-    }
-
-    req.session.save((err) => {
-      if (err) throw new ApiError(500, "Session save failed");
-
-      res.status(200).json(new ApiResponse(200, true, "Login Successful!", sanitizeUser(user)));
+  await new Promise((resolve, reject) => {
+    req.session.regenerate((err) => {
+      if (err) return reject(new ApiError(500, "Session regeneration failed"));
+      resolve();
     });
   });
+
+  req.session.userId = user._id;
+  await valkey.set(`user_session:${user._id}`, req.sessionID);
+
+  if (user.role === "admin") {
+    await logAdminAction(req, user._id, "LOGIN", "Admin logged in via PIN");
+  }
+
+  await new Promise((resolve, reject) => {
+    req.session.save((err) => {
+      if (err) return reject(new ApiError(500, "Session save failed"));
+      resolve();
+    });
+  });
+
+  return res.status(200).json(new ApiResponse(200, true, "Login Successful!", sanitizeUser(user)));
 });
 
 const loginOtp = asyncHandler(async (req, res) => {
@@ -369,19 +391,24 @@ const loginOtp = asyncHandler(async (req, res) => {
     await valkey.del(`OTX:${oldSessionId}`);
   }
 
-  req.session.regenerate(async (err) => {
-    if (err) throw new ApiError(500, "Session regeneration failed");
-
-    req.session.userId = user._id;
-    await valkey.set(`user_session:${user._id}`, req.sessionID);
-
-
-    req.session.save((err) => {
-      if (err) throw new ApiError(500, "Session save failed");
-
-      res.status(200).json(new ApiResponse(200, true, "OTP Login Successful!", sanitizeUser(user)));
+  await new Promise((resolve, reject) => {
+    req.session.regenerate((err) => {
+      if (err) return reject(new ApiError(500, "Session regeneration failed"));
+      resolve();
     });
   });
+
+  req.session.userId = user._id;
+  await valkey.set(`user_session:${user._id}`, req.sessionID);
+
+  await new Promise((resolve, reject) => {
+    req.session.save((err) => {
+      if (err) return reject(new ApiError(500, "Session save failed"));
+      resolve();
+    });
+  });
+
+  return res.status(200).json(new ApiResponse(200, true, "OTP Login Successful!", sanitizeUser(user)));
 });
 
 const logout = asyncHandler(async (req, res) => {
@@ -391,14 +418,16 @@ const logout = asyncHandler(async (req, res) => {
     if (user && user.role === "admin") {
       await logAdminAction(req, user._id, "LOGOUT", "Admin logged out");
     }
+    try {
+      await valkey.del(`user_session:${userId}`);
+    } catch (valkeyErr) {
+      console.error("Failed to delete user_session from Valkey:", valkeyErr);
+    }
   }
 
   await new Promise((resolve, reject) => {
-    req.session.destroy(async (err) => {
-      if (err) return reject(err);
-      if (userId) {
-        await valkey.del(`user_session:${userId}`);
-      }
+    req.session.destroy((err) => {
+      if (err) return reject(new ApiError(500, "Logout session destruction failed"));
       resolve();
     });
   });

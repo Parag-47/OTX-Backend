@@ -402,7 +402,7 @@ const updateProfileSchema = {
     },
     incomeRange: {
       type: "string",
-      enum: ["below_1l", "1_5l", "5_10l", "10l+", "below1L", "1-5L", "5-10L"],
+      enum: ["below_1l", "1_5l", "5_10l", "10l+"],
       errorMessage: {
         enum: "Invalid income range",
       },
