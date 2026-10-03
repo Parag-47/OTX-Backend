@@ -1,4 +1,4 @@
-import SHARED_STYLES from "./sharedStyle.js";
+import SHARED_STYLES, { OTX_LOGO_URL } from "./sharedStyle.js";
 
 export default function PASSWORD_RESET_TEMPLATE(link) {
   return `<!DOCTYPE html>
@@ -12,7 +12,7 @@ export default function PASSWORD_RESET_TEMPLATE(link) {
   <body>
       <div class="email-container">
           <div class="header">
-              <img src="https://www.onetimex.in/[removal.ai]_66399c92-94f0-4f4a-a183-30fb7476d933-b2afb360-b79e-42a3-9222-c46acc12bda0.png" alt="OneTimex Logo">
+              <img src="${OTX_LOGO_URL}" alt="OneTimex Logo" style="max-height: 50px; width: auto; object-fit: contain;">
           </div>
           <div class="content">
               <h1>Reset Your Password</h1>
@@ -21,7 +21,7 @@ export default function PASSWORD_RESET_TEMPLATE(link) {
               <p>This link will expire in <strong>15 minutes</strong>. If you didn't request a password reset, you can safely ignore this email — your password will not be changed.</p>
           </div>
           <p class="footer">
-              Need help? Contact us at <a href="mailto:support@onetimex.in" style="color: #007bff;">support@onetimex.in</a><br>
+              Need help? Contact us at <a href="mailto:connect@onetimex.in" style="color: #007bff;">connect@onetimex.in</a><br>
               © 2026 OneTimex. All rights reserved.
           </p>
       </div>

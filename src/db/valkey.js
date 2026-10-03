@@ -7,4 +7,5 @@ const valkeyStore = new RedisStore({
   prefix: "OTX:",
 });
 
+export { valkey };
 export default valkeyStore;

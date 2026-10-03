@@ -2,6 +2,9 @@ import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import EMAIL_VERIFICATION_TEMPLATE from "../templates/verifyMail.template.js";
 import PASSWORD_RESET_TEMPLATE from "../templates/resetPasswordMail.template.js";
+import EMAIL_OTP_TEMPLATE from "../templates/emailOtp.template.js";
+import EMAIL_VERIFIED_TEMPLATE from "../templates/emailVerified.template.js";
+import { USE_HOSTED_LOGO } from "../templates/sharedStyle.js";
 
 export const trustedDomains = [
   "gmail.com",
@@ -26,11 +29,12 @@ function isTrustedEmail(email) {
   return trustedDomains.includes(domain);
 }
 
+const smtpPort = Number(process.env.SMTP_PORT) || 465;
+
 const transporter = nodemailer.createTransport({
-  //service: "gmail",
   host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: false,
+  port: smtpPort,
+  secure: smtpPort === 465,
   auth: {
     user: process.env.SMTP_ID,
     pass: process.env.SMTP_PASSWORD,
@@ -41,14 +45,49 @@ const EMAIL_TYPES = {
   EMAIL_VERIFICATION: {
     subject: "Verify Your Email Address",
     template: EMAIL_VERIFICATION_TEMPLATE,
+    text: (link) =>
+      `Verify Your Email Address\n\nPlease verify your email address by visiting the following link:\n${link}\n\nIf you did not request this, please ignore this email.`,
+  },
+  EMAIL_OTP: {
+    subject: "Your OneTimeX Email Verification Code",
+    template: EMAIL_OTP_TEMPLATE,
+    text: (otp) =>
+      `Your OneTimeX Email Verification Code\n\nYour verification code is: ${otp}\n\nThis code will expire in 10 minutes. Do not share this code with anyone.`,
+  },
+  EMAIL_VERIFIED: {
+    subject: "Your Email Has Been Verified - OneTimeX",
+    template: EMAIL_VERIFIED_TEMPLATE,
+    text: (name) =>
+      `Your Email Has Been Verified - OneTimeX\n\nHello ${name || "User"},\n\nYour email address has been successfully verified on OneTimeX.`,
   },
   PASSWORD_RESET: {
     subject: "Reset Your Password",
     template: PASSWORD_RESET_TEMPLATE,
+    text: (link) =>
+      `Reset Your Password\n\nPlease use the following link to reset your password:\n${link}\n\nIf you did not request a password reset, please ignore this email.`,
   },
 };
 
-const SENDMAIL = async (type, email, link) => {
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Optimized (160x160, ~26KB) email logo — used only as an embedded CID fallback
+// when no hosted logo URL is available (e.g. local development).
+const primaryLogoPath = path.resolve(__dirname, "../../public/otx-email-logo.png");
+const fallbackLogoPath = path.resolve(__dirname, "../../../onetimex/public/otx-email-logo.png");
+const logoPath = USE_HOSTED_LOGO
+  ? null
+  : fs.existsSync(primaryLogoPath)
+    ? primaryLogoPath
+    : fs.existsSync(fallbackLogoPath)
+      ? fallbackLogoPath
+      : null;
+
+const SENDMAIL = async (type, email, linkOrOtp) => {
   const config = EMAIL_TYPES[type];
 
   if (!config) {
@@ -58,12 +97,26 @@ const SENDMAIL = async (type, email, link) => {
     };
   }
 
+  const plainText =
+    typeof config.text === "function"
+      ? config.text(linkOrOtp)
+      : `${config.subject}: ${linkOrOtp || ""}`.trim();
+
   const mailDetails = {
     from: process.env.SMTP_ID,
     to: email,
     subject: config.subject,
-    text: `${config.subject}: ${link}`,
-    html: config.template(link),
+    text: plainText,
+    html: config.template(linkOrOtp),
+    attachments: logoPath
+      ? [
+        {
+          filename: "otx-email-logo.png",
+          path: logoPath,
+          cid: "otx_logo",
+        },
+      ]
+      : [],
   };
 
   try {

@@ -9,12 +9,12 @@ const userSchema = new Schema(
       // index: true,
       //require: true,
     },
-    password: {
+    pin: {
       type: String,
-      //require: [true, "Password is Required!"],
+      select: false,
     },
     phone: {
-      type: Number,
+      type: String,
       default: null,
       // unique: true,
       // index: true,
@@ -79,6 +79,11 @@ const userSchema = new Schema(
     },
     banReason: String,
     bannedAt: Date,
+    accountStatus: {
+      type: String,
+      enum: ["Active", "OnHold", "Closed"],
+      default: "Active",
+    },
   },
   { timestamps: true }
 );
@@ -87,7 +92,10 @@ userSchema.index(
   { email: 1 },
   {
     unique: true,
-    partialFilterExpression: { email: { $exists: true } },
+    partialFilterExpression: {
+      verified_email: true,
+      email: { $type: "string" },
+    },
   }
 );
 
@@ -95,7 +103,7 @@ userSchema.index(
   { phone: 1 },
   {
     unique: true,
-    partialFilterExpression: { phone: { $exists: true } },
+    partialFilterExpression: { phone: { $type: "string" } },
   }
 );
 
