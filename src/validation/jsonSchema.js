@@ -430,7 +430,7 @@ const updateKycSchema = {
   properties: {
     panNumber: {
       type: "string",
-      pattern: "^[A-Z]{5}[0-9]{4}[A-Z]{1}$",
+      pattern: "^[a-zA-Z]{5}[0-9]{4}[a-zA-Z]{1}$",
       errorMessage: {
         pattern: "PAN Number must be in the format XXXXX1234X",
       },
@@ -869,4 +869,206 @@ export const validateUpdateStock = ajv.compile(updateStockSchema);
 export const validateVerifyPhoneOtp = ajv.compile(loginOtpSchema); // Requires phone + otp
 export const validateSendVerificationOtp = ajv.compile(forgetPinSchema); // Requires just phone (exactly 10 digits)
 
+// ==================== KYC VERIFICATION SCHEMAS ====================
+const verifyPanSchema = {
+  type: "object",
+  properties: {
+    panNumber: {
+      type: "string",
+      pattern: "^[a-zA-Z]{5}[0-9]{4}[a-zA-Z]{1}$",
+      errorMessage: {
+        pattern: "PAN Number must be in the format XXXXX1234X",
+      },
+    },
+  },
+  required: ["panNumber"],
+  additionalProperties: false,
+  errorMessage: {
+    required: {
+      panNumber: "PAN Number is required",
+    },
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
+
+const sendAadhaarOtpSchema = {
+  type: "object",
+  properties: {
+    aadhaarNumber: {
+      type: "string",
+      pattern: "^\\d{12}$",
+      errorMessage: {
+        pattern: "Aadhaar Number must be exactly 12 digits",
+      },
+    },
+  },
+  required: ["aadhaarNumber"],
+  additionalProperties: false,
+  errorMessage: {
+    required: {
+      aadhaarNumber: "Aadhaar Number is required",
+    },
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
+
+const verifyAadhaarOtpSchema = {
+  type: "object",
+  properties: {
+    otp: {
+      type: "string",
+      pattern: "^[0-9]{6}$",
+      errorMessage: {
+        pattern: "OTP must be exactly 6 digits",
+      },
+    },
+  },
+  required: ["otp"],
+  additionalProperties: false,
+  errorMessage: {
+    required: {
+      otp: "OTP is required",
+    },
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
+
+
+const verifyBankAccountSchema = {
+  type: "object",
+  properties: {
+    accountNumber: {
+      type: "string",
+      pattern: "^[0-9]{9,18}$",
+      errorMessage: {
+        pattern: "Bank Account Number must be between 9 and 18 digits",
+      },
+    },
+    ifscCode: {
+      type: "string",
+      pattern: "^[A-Za-z]{4}0[A-Za-z0-9]{6}$",
+      errorMessage: {
+        pattern: "IFSC Code must be valid format (e.g. SBIN0001234)",
+      },
+    },
+  },
+  required: ["accountNumber", "ifscCode"],
+  additionalProperties: false,
+  errorMessage: {
+    required: {
+      accountNumber: "Bank Account Number is required",
+      ifscCode: "IFSC Code is required",
+    },
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
+
+export const validateVerifyPan = ajv.compile(verifyPanSchema);
+export const validateSendAadhaarOtp = ajv.compile(sendAadhaarOtpSchema);
+export const validateVerifyAadhaarOtp = ajv.compile(verifyAadhaarOtpSchema);
+export const validateVerifyBankAccount = ajv.compile(verifyBankAccountSchema);
+
+// ==================== REMOVE BANK ACCOUNT SCHEMA ====================
+const removeBankSchema = {
+  type: "object",
+  properties: {
+    pin: {
+      type: "string",
+      pattern: "^[0-9]{4}$",
+      errorMessage: {
+        pattern: "Security PIN must be exactly 4 digits",
+      },
+    },
+  },
+  required: ["pin"],
+  additionalProperties: false,
+  errorMessage: {
+    required: {
+      pin: "OTX Security PIN is required to remove bank details",
+    },
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
+
+export const validateRemoveBankAccount = ajv.compile(removeBankSchema);
+
+// ==================== WATCHLIST VALIDATION SCHEMA ====================
+const addToWatchlistSchema = {
+  type: "object",
+  properties: {
+    stockId: {
+      type: "string",
+      minLength: 1,
+      maxLength: 100,
+      errorMessage: {
+        minLength: "Stock ID cannot be empty",
+        maxLength: "Stock ID is too long",
+      },
+    },
+  },
+  required: ["stockId"],
+  additionalProperties: false,
+  errorMessage: {
+    required: {
+      stockId: "Stock ID is required",
+    },
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
+
+export const validateAddToWatchlist = ajv.compile(addToWatchlistSchema);
+
+// ==================== EMAIL OTP SCHEMAS ====================
+const sendEmailOtpSchema = {
+  type: "object",
+  properties: {
+    email: {
+      type: "string",
+      format: "email",
+      errorMessage: {
+        format: "Must be a valid email address",
+      },
+    },
+  },
+  required: ["email"],
+  additionalProperties: false,
+  errorMessage: {
+    required: {
+      email: "Email address is required",
+    },
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
+
+const verifyEmailOtpSchema = {
+  type: "object",
+  properties: {
+    email: {
+      type: "string",
+      format: "email",
+      errorMessage: {
+        format: "Must be a valid email address",
+      },
+    },
+    otp: {
+      type: "string",
+      pattern: "^[0-9]{6}$",
+      errorMessage: {
+        pattern: "OTP must be exactly 6 digits",
+      },
+    },
+  },
+  required: ["email", "otp"],
+  additionalProperties: false,
+  errorMessage: {
+    required: {
+      email: "Email address is required",
+      otp: "OTP is required",
+    },
+    additionalProperties: "Unknown field(s) provided",
+  },
+};
+
+export const validateSendEmailOtp = ajv.compile(sendEmailOtpSchema);
+export const validateVerifyEmailOtp = ajv.compile(verifyEmailOtpSchema);
 

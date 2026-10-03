@@ -27,6 +27,7 @@
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.6.1",
     "express-session": "^1.18.0",
+    "fuzzball": "^2.2.6",
     "helmet": "^7.1.0",
     "hpp": "^0.2.3",
     "inquirer": "^13.3.0",

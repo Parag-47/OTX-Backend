@@ -31,6 +31,8 @@ import {
   validateCreateOrder,
   validateSendVerificationOtp,
   validateVerifyPhoneOtp,
+  validateSendEmailOtp,
+  validateVerifyEmailOtp,
 } from "../validation/jsonSchema.js";
 
 import {
@@ -70,6 +72,7 @@ import {
   getPortfolioSummary,
   getOrderDetails,
   getWalletBalance,
+  getWalletSummary,
   initiateDeposit,
   handleCashfreeWebhook,
   verifyPaymentAndCredit,
@@ -82,6 +85,8 @@ import {
   requestAccountClosure,
   sendVerificationOtp,
   verifyPhoneOtp,
+  sendEmailOtp,
+  verifyEmailOtpHandler,
 } from "../controllers/user.controller.js";
 
 const userRouter = Router();
@@ -143,6 +148,22 @@ userRouter.post(
   checkAuthentication,
   validateBody(validateVerifyPhoneOtp),
   verifyPhoneOtp
+);
+
+// email verification routes for logged in users
+userRouter.post(
+  "/send-email-otp",
+  checkAuthentication,
+  otpLimiter,
+  validateBody(validateSendEmailOtp),
+  sendEmailOtp
+);
+
+userRouter.post(
+  "/verify-email-otp",
+  checkAuthentication,
+  validateBody(validateVerifyEmailOtp),
+  verifyEmailOtpHandler
 );
 
 // verified account required
@@ -271,6 +292,7 @@ userRouter.get("/orders/:id", checkAuthentication, getOrderDetails);
 // ==================== WALLET ROUTES ====================
 
 userRouter.get("/wallet/balance", checkAuthentication, getWalletBalance);
+userRouter.get("/wallet/summary", checkAuthentication, getWalletSummary);
 userRouter.get("/wallet/transactions", checkAuthentication, getWalletTransactions);
 userRouter.post("/wallet/deposit/initiate", checkAuthentication, requireActiveAccount, initiateDeposit);
 userRouter.post("/wallet/verify-payment", checkAuthentication, verifyPaymentAndCredit); // Direct Cashfree API verify (webhook fallback)

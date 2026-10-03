@@ -136,3 +136,14 @@ dist
 # AI agent config (do not push to GitHub)
 AGENTS.md
 .agent/
+
+# Postman Collections (do not push to GitHub)
+*postman_collection.json
+*.postman_collection.json
+OneTimeX_Postman_Collection.json
+OTX.postman_collection.json
+
+# Scratch & temporary files
+scratch/
+scripts/
+

@@ -9,6 +9,8 @@ import valkeyStore from "./db/valkey.js";
 import userRouter from "./routes/user.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import whatsappRouter from "./routes/whatsapp.routes.js";
+import kycRouter from "./routes/kyc.routes.js";
+import watchlistRouter from "./routes/watchlist.routes.js";
 import { globalLimiter } from "./middlewares/rateLimiter.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
@@ -33,7 +35,10 @@ const sessionOptions = {
 const app = express();
 
 // Enable trust proxy so Express & express-rate-limit correctly recognize forwarded HTTPS/IP headers
-if (process.env.NODE_ENV === "production") {
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy !== undefined && trustProxy !== "false" && trustProxy !== "0") {
+  app.set("trust proxy", trustProxy === "true" ? 1 : (Number(trustProxy) || trustProxy));
+} else if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
 
@@ -146,6 +151,8 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/kyc", kycRouter);
+app.use("/api/v1/user/watchlist", watchlistRouter);
 
 app.get("/oauthError/:error", (req, res) => {
   return res.send(req.params.error);

@@ -18,7 +18,7 @@ import { AccountClosure } from "../models/accountClosure.model.js";
 import { createCashfreeOrder, verifyCashfreeSignature, cashfreeClient } from "../services/cashfree.service.js";
 import { verifyCashfreeWebhookSignature } from "../utils/cashfree.utils.js";
 import { encrypt, decrypt } from "../utils/encryption.js";
-import { generateAndCacheOtp, verifyOtp } from "../utils/otpCache.js";
+import { generateAndCacheOtp, verifyOtp, generateAndCacheEmailOtp, verifyEmailOtp } from "../utils/otpCache.js";
 import { logAdminAction } from "../utils/adminLogger.js";
 
 import { valkey } from "../db/valkey.js";
@@ -138,6 +138,12 @@ async function googleAuthCallback(req, res) {
       if (existingUser.role === "admin") {
         throw new ApiError(403, "Admins must login using phone and PIN only.");
       }
+
+      const oldSessionId = await valkey.get(`user_session:${existingUser._id}`);
+      if (oldSessionId) {
+        await valkey.del(`OTX:${oldSessionId}`);
+      }
+
       await new Promise((resolve, reject) => {
         req.session.regenerate((err) => {
           if (err) return reject(new ApiError(500, "Session regeneration failed"));
@@ -146,6 +152,8 @@ async function googleAuthCallback(req, res) {
       });
 
       req.session.userId = existingUser._id;
+      await valkey.set(`user_session:${existingUser._id}`, req.sessionID);
+
       await new Promise((resolve, reject) => {
         req.session.save((err) => {
           if (err) return reject(new ApiError(500, "Session save failed"));
@@ -154,7 +162,7 @@ async function googleAuthCallback(req, res) {
       });
 
       return res.redirect(
-        `${frontendOrigin}/?profilePic=${googleUser.picture}&email=${googleUser.email}&name=${googleUser.name}`
+        `${frontendOrigin}/?profilePic=${encodeURIComponent(googleUser.picture || "")}&email=${encodeURIComponent(googleUser.email || "")}&name=${encodeURIComponent(googleUser.name || "")}`
       );
     }
 
@@ -167,6 +175,11 @@ async function googleAuthCallback(req, res) {
 
     if (!newUser) throw new ApiError(500, "Failed To Create User!");
 
+    const oldSessionId = await valkey.get(`user_session:${newUser._id}`);
+    if (oldSessionId) {
+      await valkey.del(`OTX:${oldSessionId}`);
+    }
+
     await new Promise((resolve, reject) => {
       req.session.regenerate((err) => {
         if (err) return reject(new ApiError(500, "Session regeneration failed"));
@@ -175,6 +188,7 @@ async function googleAuthCallback(req, res) {
     });
 
     req.session.userId = newUser._id;
+    await valkey.set(`user_session:${newUser._id}`, req.sessionID);
 
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
@@ -184,7 +198,7 @@ async function googleAuthCallback(req, res) {
     });
 
     return res.redirect(
-      `${frontendOrigin}/?profilePic=${googleUser.picture}&email=${googleUser.email}&name=${googleUser.name}`
+      `${frontendOrigin}/?profilePic=${encodeURIComponent(googleUser.picture || "")}&email=${encodeURIComponent(googleUser.email || "")}&name=${encodeURIComponent(googleUser.name || "")}`
     );
   } catch (error) {
     console.log("Error In Callback: ", error);
@@ -306,6 +320,11 @@ const verifyEmail = asyncHandler(async (req, res) => {
   );
 
   if (!user) throw new ApiError(500, "Failed To Verify Email!");
+
+  // Send confirmation email asynchronously
+  SENDMAIL("EMAIL_VERIFIED", user.email, user.name || "User").catch((err) => {
+    console.error("[Email Verified Notification Error]:", err.message);
+  });
 
   res
     .status(200)
@@ -745,7 +764,7 @@ const updateProfile = asyncHandler(async (req, res) => {
  * Fetch KYC details, decrypting PAN and Aadhaar
  */
 const getKycDetails = asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.user?._id || req.session?.userId;
 
   const kyc = await Kyc.findOne({ userId }).select("-__v -createdAt -updatedAt").lean();
 
@@ -760,26 +779,35 @@ const getKycDetails = asyncHandler(async (req, res) => {
 
   if (kyc.panNumber) {
     try {
-      panNumber = decrypt(kyc.panNumber);
+      const dec = decrypt(kyc.panNumber);
+      if (dec && !dec.includes(":") && dec.length === 10) {
+        panNumber = dec;
+      }
     } catch (e) {
-      panNumber = kyc.panNumber;
+      console.error("Failed to decrypt panNumber:", e.message);
+      panNumber = null;
     }
   }
 
-  if (kyc.aadhaarNumber) {
-    try {
-      aadhaarNumber = decrypt(kyc.aadhaarNumber);
-    } catch (e) {
-      aadhaarNumber = kyc.aadhaarNumber;
-    }
+  if (kyc.aadhaarLast4) {
+    // Generate masked Aadhaar (as per UIDAI compliance, we only store last 4)
+    aadhaarNumber = `XXXXXXXX${kyc.aadhaarLast4}`;
   }
 
   const sanitizedKyc = {
     _id: kyc._id,
     panNumber,
+    panVerified: kyc.panVerified || false,
+    panName: kyc.panName || null,
     aadhaarNumber,
+    aadhaarLast4: kyc.aadhaarLast4 || null,
+    aadhaarVerified: kyc.aadhaarVerified || false,
+    aadhaarName: kyc.aadhaarName || null,
     address: kyc.address || null,
-    isVerified: kyc.isVerified || false,
+    bankVerified: kyc.bankVerified || false,
+    bankName: kyc.bankName || null,
+    bankRegisteredName: kyc.bankRegisteredName || kyc.accountHolderName || null,
+    isVerified: (kyc.panVerified && kyc.aadhaarVerified) || false,
   };
 
   return res.status(200).json(
@@ -792,7 +820,7 @@ const getKycDetails = asyncHandler(async (req, res) => {
  * Update KYC details, encrypting PAN and Aadhaar before saving
  */
 const updateKycDetails = asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.user?._id || req.session?.userId;
   const { panNumber, aadhaarNumber, address, accountNumber, ifscCode, accountHolderName, bankName } = req.body;
 
   const update = {};
@@ -805,13 +833,7 @@ const updateKycDetails = asyncHandler(async (req, res) => {
   if (accountNumber !== undefined) update.accountNumber = encrypt(accountNumber);
   if (ifscCode !== undefined) update.ifscCode = encrypt(ifscCode.toUpperCase().trim());
 
-  if (panNumber) {
-    update.panNumber = encrypt(panNumber);
-  }
 
-  if (aadhaarNumber) {
-    update.aadhaarNumber = encrypt(aadhaarNumber);
-  }
 
   if (Object.keys(update).length === 0) {
     throw new ApiError(400, "No valid fields provided to update!");
@@ -827,7 +849,7 @@ const updateKycDetails = asyncHandler(async (req, res) => {
 
   // Return the decrypted values to the frontend
   if (kyc.panNumber) kyc.panNumber = decrypt(kyc.panNumber);
-  if (kyc.aadhaarNumber) kyc.aadhaarNumber = decrypt(kyc.aadhaarNumber);
+  if (kyc.aadhaarLast4) kyc.aadhaarNumber = `XXXXXXXX${kyc.aadhaarLast4}`;
   if (kyc.accountNumber) kyc.accountNumber = decrypt(kyc.accountNumber);
   if (kyc.ifscCode) kyc.ifscCode = decrypt(kyc.ifscCode);
 
@@ -1014,8 +1036,8 @@ const createOrder = asyncHandler(async (req, res) => {
 
   // 2. Verify complete KYC mapping (PAN and Aadhaar)
   const kyc = await Kyc.findOne({ userId });
-  if (!kyc || !kyc.panNumber || !kyc.aadhaarNumber) {
-    throw new ApiError(400, "KYC check failed. You must complete your KYC details (PAN and Aadhaar) before placing orders.");
+  if (!kyc || !kyc.panVerified || !kyc.aadhaarVerified) {
+    throw new ApiError(400, "KYC check failed. You must complete verified KYC (PAN and Aadhaar) before placing orders.");
   }
 
   // 3. Verify complete Bank mapping
@@ -1352,7 +1374,9 @@ const getOrderDetails = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/v1/user/wallet/balance
- * Fetch authenticated user's wallet balance.
+ * GET /api/v1/user/wallet/summary
+ * Fetch authenticated user's complete wallet summary and ledger analytics.
+ * Pre-computes balance, lifetime credits, lifetime debits, and funds in transit on the backend.
  */
 const getWalletBalance = asyncHandler(async (req, res) => {
   const userId = req.session.userId;
@@ -1362,13 +1386,72 @@ const getWalletBalance = asyncHandler(async (req, res) => {
     wallet = await Wallet.create({ userId, balance: 0 });
   }
 
+  // 1. Pending stock orders (capital locked awaiting admin share allocation)
+  const pendingOrders = await Order.find({ userId, status: "pending" });
+  const pendingOrdersTotal = pendingOrders.reduce((sum, order) => {
+    const total =
+      order.totalPayable ??
+      (order.baseAmount
+        ? order.baseAmount + (order.transactionFee || 0) + (order.gst || 0)
+        : order.quantity * order.pricePerShare);
+    return sum + (total || 0);
+  }, 0);
+
+  // 2. Pending or processing withdrawals (funds in transit to user's bank)
+  const pendingWithdrawals = await WithdrawalRequest.find({
+    userId,
+    status: { $in: ["Pending", "Processing", "pending", "processing"] },
+  });
+  const pendingWithdrawalsTotal = pendingWithdrawals.reduce(
+    (sum, w) => sum + (w.amount || 0),
+    0
+  );
+
+  // 3. Lifetime credits (successful deposits + refunds)
+  const creditTransactions = await WalletTransaction.find({
+    userId,
+    status: "success",
+    type: { $in: ["deposit", "refund"] },
+  });
+  const totalCredits = creditTransactions.reduce(
+    (sum, tx) => sum + (tx.depositAmount || tx.baseAmount || 0),
+    0
+  );
+
+  // 4. Lifetime debits (successful stock purchase payments and withdrawals)
+  const debitTransactions = await WalletTransaction.find({
+    userId,
+    status: "success",
+    type: { $in: ["payment", "withdrawal"] },
+  });
+  const totalDebits = debitTransactions.reduce(
+    (sum, tx) => sum + (tx.totalAmount || tx.baseAmount || 0),
+    0
+  );
+
+  const fundsInTransit = pendingOrdersTotal + pendingWithdrawalsTotal;
+
   return res.status(200).json(
-    new ApiResponse(200, true, "Wallet balance fetched successfully!", {
+    new ApiResponse(200, true, "Wallet summary fetched successfully!", {
       balance: wallet.balance, // in Paise
-      balanceInRupees: wallet.balance / 100
+      balanceInRupees: wallet.balance / 100,
+      totalCredits, // in Paise
+      totalCreditsInRupees: totalCredits / 100,
+      totalDebits, // in Paise
+      totalDebitsInRupees: totalDebits / 100,
+      fundsInTransit, // in Paise
+      fundsInTransitInRupees: fundsInTransit / 100,
+      transitBreakdown: {
+        pendingOrdersTotal,
+        pendingOrdersCount: pendingOrders.length,
+        pendingWithdrawalsTotal,
+        pendingWithdrawalsCount: pendingWithdrawals.length,
+      },
     })
   );
 });
+
+const getWalletSummary = getWalletBalance;
 
 /**
  * POST /api/v1/user/wallet/deposit/initiate
@@ -2171,41 +2254,45 @@ const exportUserData = asyncHandler(async (req, res) => {
 
 const sendVerificationOtp = asyncHandler(async (req, res) => {
   const { phone } = req.body;
+  const cleanPhone = String(phone).trim();
 
-  // Check if phone already exists for another user
+  // Check if phone already exists and is verified on another user
   const existingUser = await User.findOne({
-    phone,
+    $or: [{ phone: cleanPhone }, { phone: Number(cleanPhone) }],
+    verified_phone: true,
     _id: { $ne: req.session.userId },
   });
 
   if (existingUser) {
-    throw new ApiError(400, "Phone number already registered with another account!");
+    throw new ApiError(400, "Phone number already registered and verified with another account!");
   }
 
-  await generateAndCacheOtp(phone);
+  await generateAndCacheOtp(cleanPhone);
   return res.status(200).json(new ApiResponse(200, true, "OTP sent successfully via WhatsApp!"));
 });
 
 const verifyPhoneOtp = asyncHandler(async (req, res) => {
   const { phone, otp } = req.body;
+  const cleanPhone = String(phone).trim();
 
-  // Check if phone already exists for another user just in case
+  // Check if phone already exists and is verified on another user
   const existingUser = await User.findOne({
-    phone,
+    $or: [{ phone: cleanPhone }, { phone: Number(cleanPhone) }],
+    verified_phone: true,
     _id: { $ne: req.session.userId },
   });
 
   if (existingUser) {
-    throw new ApiError(400, "Phone number already registered with another account!");
+    throw new ApiError(400, "Phone number already registered and verified with another account!");
   }
 
-  const isOtpValid = await verifyOtp(phone, otp);
+  const isOtpValid = await verifyOtp(cleanPhone, otp);
   if (!isOtpValid) throw new ApiError(400, "Invalid or Expired OTP!");
 
   const updatedUser = await User.findByIdAndUpdate(
     req.session.userId,
     {
-      phone: Number(phone),
+      phone: cleanPhone,
       verified_phone: true,
     },
     { new: true }
@@ -2214,6 +2301,82 @@ const verifyPhoneOtp = asyncHandler(async (req, res) => {
   if (!updatedUser) throw new ApiError(404, "User not found!");
 
   res.status(200).json(new ApiResponse(200, true, "Phone number verified successfully!", sanitizeUser(updatedUser)));
+});
+
+const sendEmailOtp = asyncHandler(async (req, res) => {
+  const userId = req.user?._id || req.session?.userId;
+  const { email } = req.body;
+  const cleanEmail = String(email).toLowerCase().trim();
+
+  // Check if this email is already registered and verified on another user
+  const existingUser = await User.findOne({
+    email: cleanEmail,
+    verified_email: true,
+    _id: { $ne: userId },
+  });
+
+  if (existingUser) {
+    throw new ApiError(409, "This email address is already verified on another account.");
+  }
+
+  // Generate 6-digit OTP, cache in Valkey (10-min TTL), and deliver via SMTP
+  await generateAndCacheEmailOtp(cleanEmail);
+
+  return res.status(200).json(
+    new ApiResponse(200, true, "Verification code sent to your email address successfully!")
+  );
+});
+
+const verifyEmailOtpHandler = asyncHandler(async (req, res) => {
+  const userId = req.user?._id || req.session?.userId;
+  const { email, otp } = req.body;
+  const cleanEmail = String(email).toLowerCase().trim();
+
+  // Duplicate check
+  const existingUser = await User.findOne({
+    email: cleanEmail,
+    verified_email: true,
+    _id: { $ne: userId },
+  });
+
+  if (existingUser) {
+    throw new ApiError(409, "This email address is already verified on another account.");
+  }
+
+  const isOtpValid = await verifyEmailOtp(cleanEmail, otp);
+  if (!isOtpValid) {
+    throw new ApiError(400, "Invalid or expired email OTP. Please check your code or request a new one.");
+  }
+
+  let updatedUser;
+  try {
+    updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        email: cleanEmail,
+        verified_email: true,
+      },
+      { new: true, runValidators: true }
+    );
+  } catch (error) {
+    if (error?.code === 11000 || (error?.name === "MongoServerError" && error?.code === 11000)) {
+      throw new ApiError(409, "This email address is already verified on another account.");
+    }
+    throw error;
+  }
+
+  if (!updatedUser) {
+    throw new ApiError(404, "User not found!");
+  }
+
+  // Send confirmation email asynchronously to the verified address
+  SENDMAIL("EMAIL_VERIFIED", cleanEmail, updatedUser.name || "User").catch((err) => {
+    console.error("[Email Verified Notification Error]:", err.message);
+  });
+
+  return res.status(200).json(
+    new ApiResponse(200, true, "Email verified successfully!", sanitizeUser(updatedUser))
+  );
 });
 
 export {
@@ -2245,6 +2408,7 @@ export {
   getUserOrders,
   getPortfolioSummary,
   getWalletBalance,
+  getWalletSummary,
   initiateDeposit,
   handleCashfreeWebhook,
   verifyPaymentAndCredit,
@@ -2258,4 +2422,6 @@ export {
   exportUserData,
   sendVerificationOtp,
   verifyPhoneOtp,
+  sendEmailOtp,
+  verifyEmailOtpHandler,
 };

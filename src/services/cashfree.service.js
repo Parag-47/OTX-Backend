@@ -1,9 +1,12 @@
 import axios from "axios";
 import crypto from "crypto";
 
+const isCashfreeProduction = () => {
+  return (process.env.CASHFREE_ENV || "").toLowerCase().trim() === "production";
+};
+
 const getCashfreeUrl = () => {
-  const env = process.env.CASHFREE_ENV || "sandbox";
-  return env === "production"
+  return isCashfreeProduction()
     ? "https://api.cashfree.com/pg"
     : "https://sandbox.cashfree.com/pg";
 };
@@ -52,8 +55,16 @@ export async function createCashfreeOrder(orderId, amountInRupees, customer) {
       customer_name: customer.name || "Customer",
     },
     order_meta: {
-      return_url: process.env.CASHFREE_RETURN_URL || "http://localhost:3000/wallet/status?order_id={order_id}",
-      notify_url: process.env.CASHFREE_WEBHOOK_URL,
+      return_url:
+        process.env.CASHFREE_RETURN_URL ||
+        (isCashfreeProduction()
+          ? "https://onetimex.in/wallet/status?order_id={order_id}"
+          : "http://localhost:3000/wallet/status?order_id={order_id}"),
+      notify_url:
+        process.env.CASHFREE_WEBHOOK_URL ||
+        (isCashfreeProduction()
+          ? "https://api.onetimex.in/api/v1/user/wallet/webhook"
+          : undefined),
     },
   };
 

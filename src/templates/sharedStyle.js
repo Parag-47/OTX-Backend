@@ -1,3 +1,15 @@
+// OTX email logo resolution:
+// Uses the publicly hosted, HTTPS-served logo (https://www.onetimex.in/newlogootx.png).
+// By rendering the logo directly from a hosted URL without MIME attachments,
+// mail clients (especially Gmail mobile) will NOT display an unwanted attachment badge/chip (e.g. "[image] newlogocropped") in the inbox view.
+const frontendOrigin = (process.env.PROD_FRONTEND_ORIGIN || "https://www.onetimex.in").replace(/\/+$/, "");
+
+export const OTX_LOGO_URL =
+  process.env.OTX_LOGO_URL ||
+  (frontendOrigin.includes("onetimex.in") ? "https://www.onetimex.in/newlogootx.png" : `${frontendOrigin}/newlogootx.png`);
+
+export const USE_HOSTED_LOGO = true;
+
 export default `<style>
           body {
               font-family: Arial, sans-serif;
@@ -24,7 +36,9 @@ export default `<style>
           }
 
           .header img {
-              width: 160px;
+              max-height: 50px;
+              width: auto;
+              object-fit: contain;
           }
 
           .content {
@@ -71,3 +85,4 @@ export default `<style>
           }
           
       </style>`;
+

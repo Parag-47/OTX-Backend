@@ -61,3 +61,16 @@ export function decrypt(hash) {
     throw new Error("Failed to decrypt data");
   }
 }
+
+/**
+ * Creates a deterministic HMAC-SHA256 hash (Blind Index) for exact-match lookups & unique checks
+ * @param {string} text - The raw value (e.g. PAN or Aadhaar)
+ * @returns {string|null} - The hex HMAC hash
+ */
+export function hashDeterministic(text) {
+  if (!text) return null;
+  return crypto
+    .createHmac("sha256", Buffer.from(AES_SECRET_KEY))
+    .update(String(text).toUpperCase().trim())
+    .digest("hex");
+}

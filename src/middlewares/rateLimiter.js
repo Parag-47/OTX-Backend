@@ -90,3 +90,21 @@ export const pinChangeLimiter = rateLimit({
   }),
 });
 
+// KYC Verification limiter: 3 requests per 1 hour
+export const kycVerifyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: defaultHandler,
+  message: "Too many verification attempts. Try again in 1 hour.",
+  skip: (req) => req.method === "OPTIONS", // Exclude CORS preflight requests
+  keyGenerator: (req) => {
+    const ipFallback = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+    return req.session?.userId || req.user?._id || `fallback-ip-${ipFallback}`;
+  },
+  store: new RedisStore({
+    sendCommand: (...args) => valkey.call(...args),
+    prefix: "rl:kycverify:", // Unique prefix
+  }),
+});

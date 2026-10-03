@@ -92,7 +92,10 @@ userSchema.index(
   { email: 1 },
   {
     unique: true,
-    partialFilterExpression: { email: { $exists: true } },
+    partialFilterExpression: {
+      verified_email: true,
+      email: { $type: "string" },
+    },
   }
 );
 
@@ -100,7 +103,7 @@ userSchema.index(
   { phone: 1 },
   {
     unique: true,
-    partialFilterExpression: { phone: { $exists: true } },
+    partialFilterExpression: { phone: { $type: "string" } },
   }
 );
 
