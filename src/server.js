@@ -2,6 +2,10 @@ import http from "node:http";
 import app from "./app.js";
 import mongoConnect from "./db/mongo.js";
 import { verifySMTPConnection } from "./services/mail.services.js";
+import { validateEnv } from "./utils/validateEnv.js";
+
+// Validate required environment variables immediately
+validateEnv();
 
 const PORT = process.env.PORT || 5000;
 

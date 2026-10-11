@@ -94,9 +94,6 @@ dist
 
 # Gatsby files
 .cache/
-# Comment in the public line in if your project uses Gatsby and not Next.js
-# https://nextjs.org/blog/next-9-1#public-directory-support
-# public
 
 # vuepress build output
 .vuepress/dist
@@ -133,7 +130,20 @@ dist
 # Serverless Webpack directories
 .webpack/
 
-# Optional stylelint cache
-
 # SvelteKit build / generate output
 .svelte-kit
+
+# AI agent config (do not push to GitHub)
+AGENTS.md
+.agent/
+
+# Postman Collections (do not push to GitHub)
+*postman_collection.json
+*.postman_collection.json
+OneTimeX_Postman_Collection.json
+OTX.postman_collection.json
+
+# Scratch & temporary files
+scratch/
+scripts/
+
